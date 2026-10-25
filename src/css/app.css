@@ -296,6 +296,16 @@ h1:focus, h1:focus-visible { outline: none; }
   .diag-texto { grid-column: 2; }
 }
 
+/* ---------- Backup ---------- */
+.backup-situacao { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.backup-linha { margin: 0; }
+.backup-acoes { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.backup-resultado { margin-bottom: 14px; }
+.backup-resultado .aviso-caixa { margin: 0; }
+.backup-notas h2 { margin: 0 0 6px; font: 700 .95rem var(--fonte-pixel); letter-spacing: .04em; text-transform: uppercase; }
+.lembrete-backup { margin-bottom: 16px; }
+.lembrete-backup p { margin: 0 0 10px; }
+
 /* ---------- Diálogos ---------- */
 .dialogo {
   width: min(440px, calc(100vw - 24px));

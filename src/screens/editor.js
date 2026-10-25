@@ -10,20 +10,22 @@
 
 import { h, preencher } from '../ui/dom.js';
 import { aviso, avisarErro } from '../ui/toast.js';
-import { confirmar } from '../ui/dialogos.js';
+import { confirmar, menuAcoes } from '../ui/dialogos.js';
 import { formatarDataHora, pluralizar } from '../ui/formato.js';
 import { RAIZ } from '../core/tipos.js';
 import * as armazem from '../core/storage.js';
-import { novoEstado } from '../editor/documento.js';
+import { novoEstado, corMaisProxima, rgbParaHex } from '../editor/documento.js';
 import { Controlador } from '../editor/controlador.js';
 import { Vista } from '../editor/vista.js';
 import { criarFerramentas, OPCOES_PADRAO } from '../editor/ferramentas.js';
 import { criarPainelPaleta } from '../editor/painel-paleta.js';
 import { criarPainelQuadros } from '../editor/painel-quadros.js';
 import { criarPainelIA } from '../editor/painel-ia.js';
+import { criarPainelReferencia } from '../editor/referencia.js';
 import { criarBarraFerramentas } from '../editor/barra-ferramentas.js';
 import { icone } from '../editor/icones.js';
 import { dialogoNovo, dialogoSalvar, menuTransformar } from '../editor/dialogos-editor.js';
+import { dialogoExportar, importarArquivo } from '../editor/dialogos-arquivo.js';
 import * as arquivo from '../editor/arquivo.js';
 
 export async function montar(el, { parametro, navegar, voltar }) {
@@ -53,9 +55,10 @@ export async function montar(el, { parametro, navegar, voltar }) {
       h('div', { class: 'cartoes' },
         cartao('Criar', '✨', 'Começar um desenho novo, em branco.', criar),
         cartao('Abrir', '📂', 'Continuar um desenho salvo nas suas pastas.', () => mostrarAbrir(RAIZ)),
+        cartao('Importar', '📥', 'Trazer uma imagem PNG ou um arquivo JSON de fora.', importarNaEscolha),
         rascunho && cartao('Continuar rascunho', '📝',
           `${rascunho.estado.nome || 'Sem nome'} · ${pluralizar(rascunho.estado.quadros.length, 'frame', 'frames')} · ${formatarDataHora(rascunho.em)}`,
-          () => iniciarEdicao(rascunho.estado, rascunho.origem, { sujo: true }))),
+          () => iniciarEdicao(rascunho.estado, rascunho.origem, { sujo: true, referencia: rascunho.referencia ?? null }))),
       rascunho && h('div', { class: 'barra-acoes' },
         h('button', { class: 'link', type: 'button', onclick: descartarRascunho }, 'Descartar o rascunho')));
   }
@@ -70,6 +73,11 @@ export async function montar(el, { parametro, navegar, voltar }) {
     if (!certo) return;
     await arquivo.apagarRascunho().catch(() => {});
     await mostrarEscolha();
+  }
+
+  async function importarNaEscolha() {
+    const r = await importarArquivo({ ctl: null });
+    if (r?.tipo === 'desenho') iniciarEdicao(r.estado, null, { sujo: true, referencia: r.referencia });
   }
 
   async function criar() {
@@ -121,11 +129,11 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
   async function carregar(grupo) {
     try {
-      const { estado, origem, ignorados } = await arquivo.abrirDesenho(grupo);
+      const { estado, origem, ignorados, referencia } = await arquivo.abrirDesenho(grupo);
       if (ignorados.length) {
         aviso(`${pluralizar(ignorados.length, 'arquivo tem', 'arquivos têm')} tamanho diferente e ficou de fora: ${ignorados.join(', ')}.`, { tipo: 'erro', duracao: 8000 });
       }
-      iniciarEdicao(estado, origem);
+      iniciarEdicao(estado, origem, { referencia });
     } catch (erro) {
       avisarErro(erro);
     }
@@ -135,9 +143,9 @@ export async function montar(el, { parametro, navegar, voltar }) {
   /* Modo 2: o editor                                                  */
   /* ================================================================ */
 
-  function iniciarEdicao(estado, origem, { sujo = false } = {}) {
+  function iniciarEdicao(estado, origem, { sujo = false, referencia = null } = {}) {
     limpeza();
-    const ctl = new Controlador(estado, origem);
+    const ctl = new Controlador(estado, origem, referencia);
     if (sujo) ctl.sujo = true;
     const op = { ...OPCOES_PADRAO };
     const ferramentas = criarFerramentas();
@@ -158,11 +166,12 @@ export async function montar(el, { parametro, navegar, voltar }) {
     const titulo = h('h1', { class: 'editor-titulo' });
     const botaoDesfazer = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Desfazer', title: 'Desfazer (Ctrl+Z)', onclick: () => ctl.desfazer() }, icone('desfazer', 20));
     const botaoRefazer = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Refazer', title: 'Refazer (Ctrl+Y)', onclick: () => ctl.refazer() }, icone('refazer', 20));
-    const botaoTransformar = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Transformar (espelhar, girar)', title: 'Espelhar, girar, limpar', onclick: () => menuTransformar(ctl, vista) }, icone('transformar', 20));
+    const botaoTransformar = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Transformar (espelhar, girar, tom, neve)', title: 'Espelhar, girar, mudar o tom, neve, limpar', onclick: () => menuTransformar(ctl, vista) }, icone('transformar', 20));
+    const botaoArquivo = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Exportar e importar', title: 'Exportar e importar', onclick: () => menuArquivo() }, icone('baixar', 20));
     const botaoSalvar = h('button', { class: 'botao primario', type: 'button', title: 'Salvar (Ctrl+S)', onclick: () => salvar() }, icone('salvar', 18), h('span', { class: 'rotulo' }, 'Salvar'));
     const topo = h('header', { class: 'editor-topo' },
       h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Sair do editor', onclick: () => sair() }, icone('voltar', 20)),
-      titulo, botaoDesfazer, botaoRefazer, botaoTransformar, botaoSalvar);
+      titulo, botaoDesfazer, botaoRefazer, botaoTransformar, botaoArquivo, botaoSalvar);
 
     function atualizarTopo() {
       preencher(titulo,
@@ -181,6 +190,36 @@ export async function montar(el, { parametro, navegar, voltar }) {
     });
     const ia = criarPainelIA();
 
+    /* imagem de inspiração: painel ao lado do desenho; tocar nela pega a cor */
+    const pontoRef = h('span', { class: 'aba-ponto', hidden: !ctl.referencia, title: 'Este desenho tem uma imagem de inspiração' });
+    const abaRef = h('button', {
+      class: 'gaveta-aba aba-ref', type: 'button', 'aria-pressed': 'false', 'aria-label': 'Imagem de inspiração',
+      onclick: () => painelRef.alternar(),
+    }, icone('imagem', 18), h('span', { class: 'aba-texto' }, 'Inspiração'), pontoRef);
+    function pegarCorDaReferencia(rgba) {
+      if (rgba[3] < 128) {
+        ctx.definirCor(0);
+        aviso('Esse pixel é transparente: escolhi a cor transparente (apaga).');
+        return;
+      }
+      const hex = rgbParaHex(rgba[0], rgba[1], rgba[2]);
+      let i = ctl.e.paleta.indexOf(hex);
+      if (i > 0) { ctx.definirCor(i); return; }
+      try {
+        i = ctl.adicionarCor(hex);
+        aviso(`Cor ${hex} adicionada à paleta.`);
+      } catch {
+        i = corMaisProxima(hex, ctl.e.paleta);
+        aviso(`A paleta está cheia: usei a cor mais parecida (${ctl.e.paleta[i]}). Apague uma cor que não usa para ter ${hex}.`, { duracao: 6000 });
+      }
+      ctx.definirCor(i);
+    }
+    const painelRef = criarPainelReferencia(ctl, {
+      aoPegarCor: pegarCorDaReferencia,
+      aoMudarAbertura: (aberta) => abaRef.setAttribute('aria-pressed', String(aberta)),
+    });
+    ctl.on('referencia', (r) => { pontoRef.hidden = !r; });
+
     const abaCor = h('span', { class: 'aba-cor' });
     function atualizarAbaCor() {
       abaCor.style.background = corIndice === 0 ? 'transparent' : ctl.e.paleta[corIndice];
@@ -188,7 +227,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
     }
 
     const aberturaInicial = window.matchMedia('(min-width: 900px)').matches;
-    const gaveta = (lado, rotulo, conteudoAba, corpoEl, aberta) => {
+    const gaveta = (lado, rotulo, conteudoAba, corpoEl, aberta, abasExtras = []) => {
       const raiz = h('aside', { class: `gaveta ${lado}${aberta ? ' aberta' : ''}`, 'aria-label': rotulo });
       const aba = h('button', {
         class: 'gaveta-aba', type: 'button', 'aria-expanded': String(aberta),
@@ -198,7 +237,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
         },
       }, conteudoAba, h('span', { class: 'aba-texto' }, rotulo));
       const corpo = h('div', { class: 'gaveta-corpo' }, corpoEl);
-      adicionarFilhos(raiz, lado === 'esquerda' ? [corpo, aba] : [aba, corpo]);
+      adicionarFilhos(raiz, lado === 'esquerda' ? [corpo, aba] : [h('div', { class: 'gaveta-abas' }, aba, ...abasExtras), corpo]);
       return raiz;
     };
 
@@ -212,7 +251,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
     vista.canvas.dataset.ferramenta = ferr.id;
     vista.aoDesenhar = () => {
       const p = vista.hover;
-      status.textContent = `${p && p.x >= 0 && p.y >= 0 && p.x < ctl.largura && p.y < ctl.altura ? `${p.x}, ${p.y}  ·  ` : ''}${Math.round(vista.zoom * 100)}%`;
+      status.textContent = `${ctl.largura}×${ctl.altura}  ·  ${p && p.x >= 0 && p.y >= 0 && p.x < ctl.largura && p.y < ctl.altura ? `${p.x}, ${p.y}  ·  ` : ''}${Math.round(vista.zoom * 100)}%`;
     };
     vista.aoFimDoToque = () => barra.atualizarOpcoes();
     const botaoZoom = (rotulo, texto, ao) => h('button', { class: 'botao icone pequeno', type: 'button', 'aria-label': rotulo, title: rotulo, onclick: ao }, texto);
@@ -245,11 +284,13 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
     /* ---------- montagem ---------- */
     el.classList.add('editor-ativo');
+    const centro = h('div', { class: 'editor-centro' }, painelRef.el, areaCanvas);
     const meio = h('div', { class: 'editor-meio' },
       gaveta('esquerda', 'Cores', abaCor, paleta.el, aberturaInicial),
-      areaCanvas,
-      gaveta('direita', 'Chamar IA', icone('estrela', 18), ia.el, false));
+      centro,
+      gaveta('direita', 'Chamar IA', icone('estrela', 18), ia.el, false, [abaRef]));
     preencher(el, h('div', { class: 'editor' }, topo, quadros.el, meio, barra.el));
+    if (ctl.referencia) painelRef.abrir(); // projeto com imagem de inspiração: já aparece ao abrir
 
     /* ---------- reações a mudanças ---------- */
     let medidas = `${ctl.largura}x${ctl.altura}`;
@@ -263,7 +304,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
     let relogioRascunho = 0;
     const guardarRascunho = () => {
-      if (ctl.sujo) arquivo.guardarRascunho(ctl.e, ctl.origem).catch(() => {});
+      if (ctl.sujo) arquivo.guardarRascunho(ctl.e, ctl.origem, ctl.referencia).catch(() => {});
     };
     ctl.on('sujo', (estaSujo) => {
       atualizarTopo();
@@ -296,6 +337,38 @@ export async function montar(el, { parametro, navegar, voltar }) {
         duracao: 7000,
         acao: { rotulo: 'Ver pasta', ao: () => navegar(r.pastaId === RAIZ ? '/gerenciador' : `/gerenciador/${r.pastaId}`) },
       });
+    }
+
+    /* ---------- exportar e importar ---------- */
+    function menuArquivo() {
+      return menuAcoes({
+        titulo: 'Exportar e importar',
+        subtitulo: 'Leve o desenho para fora do app ou traga arquivos de fora',
+        acoes: [
+          { icone: '⬇', rotulo: 'Exportar…', nota: 'PNG, GIF, sprite sheet, ZIP, JSON', ao: () => dialogoExportar(ctl) },
+          { icone: '⬆', rotulo: 'Importar…', nota: 'imagem PNG ou arquivo JSON', ao: () => importar() },
+        ],
+      });
+    }
+
+    async function importar() {
+      const r = await importarArquivo({ ctl });
+      if (!r) return;
+      if (r.tipo === 'paleta') {
+        const n = ctl.adicionarCores(r.cores);
+        aviso(`${pluralizar(n, 'cor entrou', 'cores entraram')} na paleta.${r.info.cortadas ? ` ${pluralizar(r.info.cortadas, 'ficou', 'ficaram')} de fora (paleta cheia).` : ''}`, { tipo: 'ok' });
+        return;
+      }
+      if (ctl.sujo) {
+        const certo = await confirmar({
+          titulo: 'Abrir o desenho importado?',
+          mensagem: 'O desenho que está aberto tem alterações não salvas. Salve antes se não quiser perdê-las.',
+          rotuloConfirmar: 'Abrir sem salvar',
+          perigo: true,
+        });
+        if (!certo) return;
+      }
+      iniciarEdicao(r.estado, null, { sujo: true, referencia: r.referencia });
     }
 
     async function sair() {
@@ -369,6 +442,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
       document.removeEventListener('keyup', aoSoltarTecla);
       window.removeEventListener('beforeunload', aoFechar);
       quadros.destruir();
+      painelRef.destruir();
       vista.destruir();
       el.classList.remove('editor-ativo');
     };
@@ -380,9 +454,9 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
   if (parametro) {
     try {
-      const { estado, origem, ignorados } = await arquivo.abrirPorItem(parametro);
+      const { estado, origem, ignorados, referencia } = await arquivo.abrirPorItem(parametro);
       if (ignorados.length) aviso(`Ficaram de fora por tamanho diferente: ${ignorados.join(', ')}.`, { tipo: 'erro', duracao: 8000 });
-      iniciarEdicao(estado, origem);
+      iniciarEdicao(estado, origem, { referencia });
     } catch (erro) {
       avisarErro(erro);
       await mostrarEscolha();

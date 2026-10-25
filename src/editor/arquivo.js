@@ -13,16 +13,13 @@
 import * as armazem from '../core/storage.js';
 import { RAIZ } from '../core/tipos.js';
 import { gravarMeta, lerMeta } from '../core/db.js';
-import { quadroParaSprite, spritesParaEstado, ErroDoEditor } from './documento.js';
+import { quadroParaSprite, spritesParaEstado, referenciaDeJson, ErroDoEditor } from './documento.js';
+import { nomeDoQuadro } from './constantes.js';
 
 const SUFIXO = /^(.*)_(\d{2,})$/;
 const chave = (nome) => nome.normalize('NFC').toLocaleLowerCase('pt-BR');
 
-/** 'cavalo', frame 0 de 12 -> 'cavalo_01'. Com 100+ frames usa 3 dígitos. */
-export function nomeDoQuadro(base, indice, total) {
-  const digitos = Math.max(2, String(total).length);
-  return `${base}_${String(indice + 1).padStart(digitos, '0')}`;
-}
+export { nomeDoQuadro };
 
 /** 'cavalo_03' -> { base: 'cavalo', numero: 3 };  'cavalo' -> { base: 'cavalo', numero: null } */
 export function separarNome(nome) {
@@ -79,8 +76,11 @@ export async function abrirDesenho(grupo) {
   });
   const { estado, ignorados } = spritesParaEstado(sprites);
   estado.nome = grupo.base;
+  // a imagem de inspiração mora no primeiro arquivo da cadeia (o primeiro que tiver uma, por segurança)
+  const referencia = sprites.map(referenciaDeJson).find(Boolean) ?? null;
   return {
     estado,
+    referencia,
     ignorados,
     origem: { pastaId: grupo.itens[0].paiId, base: grupo.base, ids: grupo.itens.map((i) => i.id), semSufixo: grupo.semSufixo },
   };
@@ -147,7 +147,7 @@ export async function analisarSalvamento({ estado, base, pastaId, origem }) {
  * nomes (ou frames antigos sobrando), devolve { precisaConfirmar: true, analise } sem gravar;
  * chame de novo com `confirmado: true` para substituir.
  */
-export async function salvarDesenho({ estado, base, pastaId, origem, confirmado = false }) {
+export async function salvarDesenho({ estado, base, pastaId, origem, referencia = null, confirmado = false }) {
   const analise = await analisarSalvamento({ estado, base, pastaId, origem });
   if (analise.precisaConfirmar && !confirmado) return { precisaConfirmar: true, analise };
 
@@ -155,7 +155,7 @@ export async function salvarDesenho({ estado, base, pastaId, origem, confirmado 
   const itens = [];
   for (let i = 0; i < total; i++) {
     const nome = analise.nomes[i];
-    const sprite = quadroParaSprite(estado, i, nome);
+    const sprite = quadroParaSprite(estado, i, nome, referencia);
     const resumo = {
       descricao: `${estado.largura}×${estado.altura} · frame ${i + 1} de ${total}`,
       largura: estado.largura,
@@ -190,7 +190,7 @@ export async function salvarDesenho({ estado, base, pastaId, origem, confirmado 
 
 const CHAVE_RASCUNHO = 'editor.rascunho';
 
-export const guardarRascunho = (estado, origem) => gravarMeta(CHAVE_RASCUNHO, { versao: 1, em: Date.now(), estado, origem });
+export const guardarRascunho = (estado, origem, referencia = null) => gravarMeta(CHAVE_RASCUNHO, { versao: 1, em: Date.now(), estado, origem, referencia });
 export const lerRascunho = () => lerMeta(CHAVE_RASCUNHO, null);
 export const apagarRascunho = () => gravarMeta(CHAVE_RASCUNHO, null);
 export const ultimaPasta = async () => {

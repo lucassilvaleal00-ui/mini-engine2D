@@ -10,6 +10,7 @@ import * as armazem from '../core/storage.js';
 import { TAMANHO_MIN, TAMANHO_MAX } from './documento.js';
 import { salvarDesenho, nomeDoQuadro, ultimaPasta } from './arquivo.js';
 import { recortarRetangulo } from './algoritmos.js';
+import { dialogoMatiz, dialogoNeve } from './dialogos-variacoes.js';
 
 /* ------------------------------------------------------------------ */
 /* Novo desenho: nome, largura, altura                                  */
@@ -144,7 +145,7 @@ export async function dialogoSalvar(ctl) {
         botaoSalvar.disabled = true;
         try {
           const r = await salvarDesenho({
-            estado: ctl.e, base: nome.value, pastaId: escolhida, origem: ctl.origem, confirmado: confirmando,
+            estado: ctl.e, base: nome.value, pastaId: escolhida, origem: ctl.origem, referencia: ctl.referencia, confirmado: confirmando,
           });
           if (r.precisaConfirmar) {
             confirmando = true;
@@ -223,6 +224,8 @@ export function menuTransformar(ctl, vista) {
         nota: ctl.largura === ctl.altura ? 'todos os frames' : 'troca largura e altura',
         ao: rodar(() => { ctl.girar(); }),
       },
+      { icone: '🎨', rotulo: 'Mudar o tom das cores…', nota: 'ex.: o mesmo herói com roupa verde, azul, roxa', ao: () => dialogoMatiz(ctl) },
+      { icone: '❄', rotulo: 'Cobrir de neve…', nota: 'neve no topo de tudo, sem usar IA', ao: () => dialogoNeve(ctl) },
       { icone: '⌫', rotulo: 'Limpar este frame', perigo: true, ao: rodar(() => ctl.limparQuadro()) },
     ];
   return menuAcoes({

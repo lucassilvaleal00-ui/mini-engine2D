@@ -148,10 +148,13 @@ export function linhasParaBuffer(linhas, w, h, mapa, contexto = '') {
 /* Estado -> sprite (um quadro por arquivo)                            */
 /* ------------------------------------------------------------------ */
 
-/** JSON de sprite com UM quadro (o `indice`), no formato do projeto. */
-export function quadroParaSprite(e, indice, nome) {
+/**
+ * JSON de sprite com UM quadro (o `indice`), no formato do projeto.
+ * `referencia` (imagem de inspiração) só é gravada no primeiro frame da cadeia.
+ */
+export function quadroParaSprite(e, indice, nome, referencia = null) {
   const quadro = e.quadros[indice];
-  return {
+  const sprite = {
     version: 1,
     name: nome,
     size: [e.largura, e.altura],
@@ -162,6 +165,61 @@ export function quadroParaSprite(e, indice, nome) {
     })),
     fps: e.fps,
   };
+  if (indice === 0 && referencia) sprite.reference = referenciaParaJson(referencia);
+  return sprite;
+}
+
+/**
+ * JSON de sprite com TODOS os quadros (uma lista de linhas por quadro, em cada camada).
+ * É o formato de "exportar JSON".
+ */
+export function estadoParaSprite(e, referencia = null) {
+  const sprite = {
+    version: 1,
+    name: e.nome,
+    size: [e.largura, e.altura],
+    palette: e.paleta.slice(),
+    layers: e.camadas.map((c, ci) => ({
+      name: c.nome,
+      frames: e.quadros.map((q) => bufferParaLinhas(q.camadas[ci], e.largura, e.altura)),
+    })),
+    fps: e.fps,
+  };
+  if (referencia) sprite.reference = referenciaParaJson(referencia);
+  return sprite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Imagem de inspiração ("referência")                                 */
+/* ------------------------------------------------------------------ */
+
+/** Limite do texto da imagem (data URL). Imagens maiores são reduzidas antes de chegar aqui. */
+export const REFERENCIA_MAX_CHARS = 6_000_000;
+const DATA_URL_IMAGEM = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
+
+/** { nome, dados, largura, altura } válido, ou null. `dados` é um data URL de imagem. */
+export function validarReferencia(r) {
+  if (!r || typeof r !== 'object') return null;
+  const dados = r.dados;
+  if (typeof dados !== 'string' || dados.length > REFERENCIA_MAX_CHARS || !DATA_URL_IMAGEM.test(dados)) return null;
+  const medida = (v) => (Number.isInteger(v) && v >= 1 && v <= 8192 ? v : null);
+  return {
+    nome: String(r.nome ?? 'imagem').slice(0, 80),
+    dados,
+    largura: medida(r.largura),
+    altura: medida(r.altura),
+  };
+}
+
+export function referenciaParaJson(r) {
+  return { name: r.nome, data: r.dados, width: r.largura, height: r.altura };
+}
+
+/** Lê o campo `reference` de um sprite salvo (ou null se não houver ou estiver estragado). */
+export function referenciaDeJson(sprite) {
+  const j = sprite?.reference;
+  if (!j) return null;
+  return validarReferencia({ nome: j.name, dados: j.data, largura: j.width, altura: j.height });
 }
 
 /**

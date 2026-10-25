@@ -458,6 +458,96 @@ export function esvaziarLixeira() {
 }
 
 /* ------------------------------------------------------------------ */
+/* Backup e restauração                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tudo que está "vivo" (a lixeira fica de fora), para montar um backup.
+ * -> { itens: [item…], dados: Map(id -> JSON) }   (pastas não têm dados)
+ */
+export function lerTudoParaBackup() {
+  return transacao('readonly', async (s) => {
+    const itens = (await pedido(s.itens.getAll())).filter(ativo);
+    const dados = new Map();
+    for (const item of itens) {
+      if (item.tipo === 'pasta') continue;
+      const registro = await pedido(s.dados.get(item.id));
+      dados.set(item.id, registro ? registro.dados : null);
+    }
+    return { itens, dados };
+  });
+}
+
+/** Quantos itens (sem contar pastas) existem e quantos mudaram depois de `desde` (ms). */
+export function contarAlteracoes(desde) {
+  return transacao('readonly', async ({ itens }) => {
+    const todos = (await pedido(itens.getAll())).filter((i) => ativo(i) && i.tipo !== 'pasta');
+    return { total: todos.length, alterados: desde ? todos.filter((i) => i.atualizadoEm > desde).length : todos.length };
+  });
+}
+
+const nomeAproveitavel = (bruto) => {
+  try { return validarNome(bruto); } catch { /* cai para a limpeza abaixo */ }
+  const limpo = String(bruto ?? '').replace(/[\/\\:@.]/g, '').replace(/\s+/g, ' ').trim().slice(0, TAMANHO_MAXIMO_NOME).trim();
+  return limpo || 'Item';
+};
+
+/**
+ * Restaura uma árvore de itens (vinda de um backup) dentro de uma pasta NOVA na raiz.
+ * Nada que já existe é tocado, e tudo ganha ids novos. É uma transação só: ou entra tudo, ou nada.
+ *
+ * @param nomePasta  nome da pasta nova (se já existir, vira "nome (2)")
+ * @param itens      [{ refId, refPaiId|null, tipo, nome, dados, resumo?, criadoEm?, atualizadoEm? }]
+ *                   `refPaiId` aponta para outro `refId` da lista; se não achar, o item vai direto na pasta nova.
+ * @returns { pasta, criados, renomeados }
+ */
+export function importarArvore({ nomePasta, itens }) {
+  return transacao('readwrite', async (s) => {
+    const t = agora();
+    const raiz = {
+      id: novoId(), tipo: 'pasta', nome: await nomeLivre(s, RAIZ, nomeAproveitavel(nomePasta)),
+      paiId: RAIZ, criadoEm: t, atualizadoEm: t,
+    };
+    await pedido(s.itens.add(raiz));
+
+    const idNovo = new Map(itens.map((i) => [i.refId, novoId()]));
+    const pastasValidas = new Set(itens.filter((i) => i.tipo === 'pasta').map((i) => i.refId));
+    const usados = new Map(); // id da pasta-mãe nova -> nomes já usados nela
+    let renomeados = 0;
+
+    for (const i of itens) {
+      if (!TIPOS[i.tipo]) continue;
+      const paiNovo = i.refPaiId && pastasValidas.has(i.refPaiId) ? idNovo.get(i.refPaiId) : raiz.id;
+      if (!usados.has(paiNovo)) usados.set(paiNovo, new Set());
+      const nomes = usados.get(paiNovo);
+      let nome = nomeAproveitavel(i.nome);
+      if (nome !== i.nome) renomeados++;
+      if (nomes.has(chaveDoNome(nome))) {
+        let n = 2;
+        let candidato;
+        do {
+          const sufixo = ` (${n++})`;
+          candidato = nome.slice(0, TAMANHO_MAXIMO_NOME - sufixo.length) + sufixo;
+        } while (nomes.has(chaveDoNome(candidato)));
+        nome = candidato;
+        renomeados++;
+      }
+      nomes.add(chaveDoNome(nome));
+
+      const registro = {
+        id: idNovo.get(i.refId), tipo: i.tipo, nome, paiId: paiNovo,
+        criadoEm: Number.isFinite(i.criadoEm) ? i.criadoEm : t,
+        atualizadoEm: Number.isFinite(i.atualizadoEm) ? i.atualizadoEm : t,
+      };
+      if (i.resumo) registro.resumo = i.resumo;
+      await pedido(s.itens.add(registro));
+      if (i.tipo !== 'pasta') await pedido(s.dados.put({ id: registro.id, dados: i.dados ?? null }));
+    }
+    return { pasta: raiz, criados: itens.length, renomeados };
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Estatísticas e persistência                                         */
 /* ------------------------------------------------------------------ */
 
@@ -487,7 +577,7 @@ function lembrarDePedirPersistencia() {
 /**
  * Pede ao navegador para NÃO apagar os dados do site quando faltar espaço.
  * O navegador pode negar (comum se o site é pouco usado); o backup em ZIP
- * (etapa 3) continua sendo a proteção real.
+ * (tela Backup) continua sendo a proteção real.
  */
 export async function pedirPersistencia() {
   try {

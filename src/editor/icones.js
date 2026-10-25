@@ -28,6 +28,8 @@ const CAMINHOS = {
   enviar: '<path d="M4 12l16-8-6 16-3-7z"/>',
   estrela: '<path d="M12 3l2.5 6 6.5.5-5 4.3 1.6 6.4L12 17l-5.6 3.2L8 13.8 3 9.5 9.5 9z"/>',
   grade: '<path d="M4 4h16v16H4zM4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>',
+  imagem: '<rect x="4" y="5" width="16" height="14"/><circle cx="9" cy="10" r="1.5"/><path d="M4 17l5-4 4 3 3-2 4 3"/>',
+  baixar: '<path d="M12 4v11M8 11l4 4 4-4M5 20h14"/>',
   cebola: '<circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6" stroke-dasharray="2 2"/>',
 };
 

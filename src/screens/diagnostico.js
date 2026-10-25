@@ -66,11 +66,11 @@ export async function montar(el, { navegar, voltar }) {
 
     const st = await armazem.statusArmazenamento();
     if (!st.suportado) {
-      linhas.push(linha('aviso', 'Persistência', 'este navegador não informa. Faça backups (etapa 3).'));
+      linhas.push(linha('aviso', 'Persistência', 'este navegador não informa. Faça backups (tela Backup).'));
     } else if (st.persistente) {
       linhas.push(linha('ok', 'Persistência', 'ativa — o navegador não apaga seus dados sozinho.'));
     } else {
-      linhas.push(linha('aviso', 'Persistência', 'não ativa — o navegador pode apagar os dados se faltar espaço. Use o botão abaixo e faça backups (etapa 3).'));
+      linhas.push(linha('aviso', 'Persistência', 'não ativa — o navegador pode apagar os dados se faltar espaço. Use o botão abaixo e faça backups (tela Backup).'));
     }
     if (st.usado !== null) {
       linhas.push(linha('info', 'Espaço usado', `${formatarBytes(st.usado)} de ${formatarBytes(st.cota)} disponíveis`));

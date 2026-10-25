@@ -129,6 +129,13 @@
   display: flex;
   min-height: 0;
 }
+.editor-centro {
+  flex: 1;
+  display: flex;
+  flex-direction: column;   /* celular: imagem de inspiração em cima, desenho embaixo */
+  min-width: 0;
+  min-height: 0;
+}
 .editor-canvas {
   position: relative;
   flex: 1;
@@ -169,6 +176,68 @@
   background: rgba(14, 15, 23, .8);
   border-radius: 4px;
   pointer-events: none;
+}
+
+/* ---------- Imagem de inspiração ---------- */
+.painel-ref {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  height: calc(var(--ref-tam, .38) * 100%);
+  min-height: 150px;
+  background: var(--painel);
+  border-bottom: 2px solid var(--borda);
+  overflow: hidden;
+}
+.ref-topo {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px 4px 12px;
+  background: var(--painel-2);
+  border-bottom: 2px solid var(--borda);
+}
+.ref-topo strong { font: 700 .78rem var(--fonte-pixel); text-transform: uppercase; letter-spacing: .05em; }
+.ref-topo .botao { min-height: 34px; min-width: 34px; padding: 0 6px; box-shadow: none; font-size: 1rem; }
+.ref-cor { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; font-size: .78rem; color: var(--suave); min-width: 0; }
+.ref-amostra { width: 16px; height: 16px; border: 2px solid var(--texto); border-radius: 3px; flex: none; }
+.ref-palco { position: relative; flex: 1; min-height: 0; background: #12131d; overflow: hidden; }
+.ref-canvas { position: absolute; left: 0; top: 0; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+.ref-canvas.arrastando { cursor: grabbing; }
+.ref-vazio {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  text-align: center;
+  overflow: auto;
+}
+.ref-vazio p { margin: 0; color: var(--suave); }
+.ref-vazio .dica { max-width: 34ch; }
+.ref-dica { margin: 0; padding: 3px 10px; font-size: .72rem; color: var(--suave); background: var(--painel-2); border-top: 1px solid var(--borda); }
+
+.gaveta-abas { display: flex; flex-direction: column; gap: 8px; align-self: flex-start; margin-top: 10px; }
+.gaveta-abas .gaveta-aba { margin-top: 0; min-height: 108px; }
+.gaveta-aba { position: relative; }
+.aba-ref[aria-pressed="true"] { border-color: var(--acento); color: var(--acento); }
+.aba-ponto {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--acento);
+  border-radius: 50%;
+}
+
+/* No celular as abas laterais ficam por cima das bordas: dá espaço para elas. */
+@media (max-width: 899px) {
+  .ref-topo { padding-left: 46px; padding-right: 46px; }
+  .ref-dica { padding-left: 46px; padding-right: 46px; }
 }
 
 /* ---------- Gavetas retráteis (esquerda: Cores · direita: Chamar IA) ---------- */
@@ -239,6 +308,17 @@
 
 /* Em telas largas as gavetas empurram o canvas em vez de cobri-lo. */
 @media (min-width: 900px) {
+  /* computador: a imagem fica AO LADO do desenho */
+  .editor-centro { flex-direction: row; }
+  .painel-ref {
+    order: 2;
+    height: auto;
+    width: calc(var(--ref-tam, .38) * 100%);
+    min-width: 280px;
+    border-bottom: 0;
+    border-left: 2px solid var(--borda);
+  }
+  .editor-canvas { order: 1; }
   .gaveta { position: relative; max-width: none; transform: none; transition: none; }
   .gaveta:not(.aberta) { width: 40px; }
   .gaveta:not(.aberta) .gaveta-corpo { display: none; }
@@ -426,11 +506,90 @@ textarea.campo { padding-top: 10px; padding-bottom: 10px; }
 .linha-flex { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .aviso-caixa.atencao { border-color: var(--acento); background: #2b2113; }
 
+/* ---------- Exportar e importar ---------- */
+.exp-previa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  padding: 10px;
+  background: var(--fundo-2);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio);
+}
+.exp-previa-canvas {
+  display: block;
+  max-width: 100%;
+  image-rendering: pixelated;
+  background: repeating-conic-gradient(#2c3042 0% 25%, #232636 0% 50%) 0 0 / 16px 16px;
+}
+.exp-resumo { margin: 0; }
+.exp-lista { display: flex; flex-direction: column; gap: 6px; }
+.exp-opcao {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 48px;
+  padding: 6px 12px;
+  font: inherit;
+  color: var(--texto);
+  text-align: left;
+  background: var(--painel-2);
+  border: 2px solid var(--borda);
+  border-radius: var(--raio);
+  cursor: pointer;
+}
+.exp-opcao:hover { border-color: var(--suave); }
+.exp-opcao[aria-checked="true"] { border-color: var(--acento); background: rgba(255, 180, 84, .1); }
+.exp-opcao-titulo { font-weight: 600; }
+.exp-opcao small { color: var(--suave); }
+.exp-opcoes { display: flex; flex-direction: column; gap: 8px; }
+.exp-marca {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  align-items: start;
+  font-size: .92rem;
+  cursor: pointer;
+}
+.exp-marca input { grid-row: span 2; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--acento); }
+.exp-marca small { color: var(--suave); }
+.dialogo-botoes.fixo {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 10px 0 2px;
+  background: linear-gradient(to bottom, transparent, var(--painel) 10px);
+}
+.imp-previa-caixa { position: relative; line-height: 0; }
+.imp-grade {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 180, 84, .95) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 180, 84, .95) 1px, transparent 1px);
+}
+.imp-lista { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 20px; font-size: .92rem; }
+.imp-avisos { display: flex; flex-direction: column; gap: 8px; }
+
 /* ---------- Celular em pé ---------- */
 @media (max-width: 480px) {
+  .editor-titulo small { display: none; } /* o tamanho aparece na barra de status do desenho */
+  .ref-topo strong { display: none; }
   .editor-topo { gap: 4px; padding: 6px; }
   .editor-topo .botao.icone { min-width: 38px; padding: 0 6px; }
   .editor-topo .botao.primario { padding: 0 10px; }
   .editor-titulo { font-size: .85rem; gap: 4px; }
   .quadros-info { display: none; }
 }
+
+/* ---------- Variações (tom das cores, neve) ---------- */
+.var-linha { display: flex; align-items: center; gap: 12px; }
+.var-deslizante { flex: 1; min-width: 0; height: 40px; accent-color: var(--acento); }
+.var-valor { min-width: 4.2em; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.var-paleta { display: flex; flex-wrap: wrap; gap: 3px; }
+.var-amostra { width: 20px; height: 20px; border: 1px solid rgba(255, 255, 255, .2); border-radius: 4px; }

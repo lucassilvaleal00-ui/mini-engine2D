@@ -9,18 +9,23 @@
  */
 
 import * as A from './algoritmos.js';
+import * as V from './variacoes.js';
 import {
-  MAX_CORES, ErroDoEditor, copiarEstado, normalizarHex, quadroVazio,
+  MAX_CORES, ErroDoEditor, copiarEstado, normalizarHex, quadroVazio, validarReferencia,
 } from './documento.js';
 
 export const LIMITE_HISTORICO = 50;
 
 export class Controlador {
-  /** @param estado  estado do documento (ver documento.js)
-   *  @param origem  { pastaId, base, itemIds } se veio de arquivos salvos; senão null */
-  constructor(estado, origem = null) {
+  /** @param estado      estado do documento (ver documento.js)
+   *  @param origem      { pastaId, base, ids[] } se veio de arquivos salvos; senão null
+   *  @param referencia  imagem de inspiração { nome, dados, largura, altura } ou null */
+  constructor(estado, origem = null, referencia = null) {
     this.e = estado;
     this.origem = origem;
+    // A referência fica FORA do estado de propósito: não entra no desfazer/refazer
+    // (desfazer um traço nunca deve fazer a imagem de inspiração sumir).
+    this.referencia = validarReferencia(referencia);
     this.sujo = false;
     this.passado = [];
     this.futuro = [];
@@ -308,6 +313,54 @@ export class Controlador {
     return indice;
   }
 
+  /**
+   * Acrescenta várias cores de uma vez (um único "desfazer"). Pula as repetidas e as que não cabem.
+   * Devolve quantas entraram.
+   */
+  adicionarCores(lista) {
+    const novas = [];
+    for (const c of lista) {
+      const hex = normalizarHex(c);
+      if (hex && !this.e.paleta.includes(hex) && !novas.includes(hex)) novas.push(hex);
+    }
+    const entram = novas.slice(0, Math.max(0, MAX_CORES - this.e.paleta.length));
+    if (!entram.length) return 0;
+    this._transacao((e) => { e.paleta.push(...entram); }, { paleta: true });
+    return entram.length;
+  }
+
+  /* ---------- variações (sem IA) ---------- */
+
+  /**
+   * Gira o tom (matiz) de todas as cores da paleta, `graus` de -180 a 180. Um único "desfazer".
+   * Devolve quantas cores mudaram de fato (cinzas, branco e preto não têm tom).
+   */
+  deslocarMatiz(graus) {
+    const g = Number(graus);
+    if (!Number.isFinite(g) || g < -360 || g > 360) throw new ErroDoEditor('Use um valor de -180 a 180 graus.');
+    const nova = V.deslocarMatizPaleta(this.e.paleta, g);
+    const mudou = nova.filter((c, i) => c !== this.e.paleta[i]).length;
+    if (!mudou) return 0;
+    this._transacao((e) => { e.paleta = nova; }, { paleta: true });
+    return mudou;
+  }
+
+  /**
+   * Cobre o topo do desenho de neve (ver variacoes.js). `espessura` 1 a 3; `escopo` 'quadro' ou 'todos'.
+   * Devolve { pixels, corNova }: quantos pixels foram cobertos e se a cor da neve foi acrescentada à paleta.
+   */
+  aplicarNeve({ espessura = 1, escopo = 'quadro' } = {}) {
+    if (!V.ESPESSURAS_NEVE.includes(espessura)) throw new ErroDoEditor('A espessura da neve vai de 1 a 3 pixels.');
+    const r = V.aplicarNeve(this.e, { espessura, escopo });
+    if (!r.mudou) return { pixels: r.pixels, corNova: false };
+    const corNova = r.paleta !== this.e.paleta;
+    this._transacao((e) => {
+      e.paleta = r.paleta;
+      e.quadros = r.quadros;
+    }, { pixels: true, paleta: corNova });
+    return { pixels: r.pixels, corNova };
+  }
+
   /** Troca a cor de um índice: todos os pixels que a usam mudam junto. */
   alterarCor(indice, hex) {
     const h = normalizarHex(hex);
@@ -344,6 +397,15 @@ export class Controlador {
   }
 
   /* ---------- propriedades (não entram no histórico) ---------- */
+
+  /** Troca (ou remove, com null) a imagem de inspiração. Conta como alteração não salva. */
+  definirReferencia(ref) {
+    const nova = ref === null ? null : validarReferencia(ref);
+    if (ref !== null && !nova) throw new ErroDoEditor('Essa imagem não pôde ser usada como inspiração.');
+    this.referencia = nova;
+    this._marcarSujo();
+    this.emitir('referencia', nova);
+  }
 
   definirNome(nome) {
     if (this.e.nome === nome) return;

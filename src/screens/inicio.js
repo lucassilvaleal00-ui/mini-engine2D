@@ -4,6 +4,7 @@
 
 import { h, adicionar } from '../ui/dom.js';
 import { estatisticas } from '../core/storage.js';
+import { situacaoDoBackup, mensagemDeLembrete, adiarLembrete, lerAdiamento } from '../core/backup.js';
 
 const CARTOES = [
   {
@@ -27,11 +28,21 @@ const CARTOES = [
 export async function montar(el, { navegar }) {
   let lixeira = 0;
   let erroDoBanco = null;
+  let lembrete = null;
   try {
     lixeira = (await estatisticas()).lixeira;
+    lembrete = mensagemDeLembrete(await situacaoDoBackup(), Date.now(), await lerAdiamento());
   } catch (erro) {
     erroDoBanco = erro;
   }
+  const caixaLembrete = lembrete && h('div', { class: 'aviso-caixa atencao lembrete-backup', role: 'note' },
+    h('p', {}, h('strong', {}, '💾 Hora de um backup? '), lembrete),
+    h('div', { class: 'dialogo-botoes' },
+      h('button', {
+        class: 'botao', type: 'button',
+        onclick: async () => { await adiarLembrete(3).catch(() => {}); caixaLembrete.remove(); },
+      }, 'Agora não'),
+      h('button', { class: 'botao primario', type: 'button', onclick: () => navegar('/backup') }, 'Fazer backup')));
 
   adicionar(el, [
     h('header', { class: 'marca' },
@@ -42,6 +53,8 @@ export async function montar(el, { navegar }) {
       h('strong', {}, 'O armazenamento do navegador não está disponível. '),
       erroDoBanco.message,
       ' Seus desenhos não poderão ser salvos até isso ser resolvido.'),
+
+    caixaLembrete,
 
     h('main', { class: 'cartoes' },
       CARTOES.map((c) => h('button', {
@@ -57,7 +70,8 @@ export async function montar(el, { navegar }) {
     h('footer', { class: 'rodape' },
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/lixeira') },
         lixeira ? `🗑️ Lixeira (${lixeira})` : '🗑️ Lixeira'),
+      h('button', { class: 'link', type: 'button', onclick: () => navegar('/backup') }, '💾 Backup'),
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/diagnostico') }, '🔧 Diagnóstico'),
-      h('span', {}, 'Etapa 2a · editor')),
+      h('span', {}, 'Etapa 3 · arquivos')),
   ]);
 }

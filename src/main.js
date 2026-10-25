@@ -12,6 +12,7 @@ import * as gerenciador from './screens/gerenciador.js';
 import * as lixeira from './screens/lixeira.js';
 import * as diagnostico from './screens/diagnostico.js';
 import * as editor from './screens/editor.js';
+import * as backup from './screens/backup.js';
 import { cenario, jogo } from './screens/em-breve.js';
 
 // Mostra erros inesperados na tela (no celular ninguém vê o console).
@@ -26,6 +27,7 @@ iniciarRoteador(document.getElementById('app'), {
   lixeira,
   diagnostico,
   editor,
+  backup,
   cenario,
   jogo,
 });
