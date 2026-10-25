@@ -6,7 +6,7 @@
  * e volta quando o desenho é aberto de novo. Ela nunca entra nos PNG/GIF exportados.
  */
 
-import { h, preencher } from '../ui/dom.js';
+import { h } from '../ui/dom.js';
 import { confirmar } from '../ui/dialogos.js';
 import { aviso, avisarErro } from '../ui/toast.js';
 import { icone } from './icones.js';

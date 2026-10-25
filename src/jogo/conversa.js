@@ -55,7 +55,7 @@ export function resumirMensagemDaIA(texto) {
 }
 
 /** Monta { sistema, mensagens } para conversar(). */
-export function montarPedido(projeto, { textoAssets, avisosAssets = [] }) {
+export function montarPedido(projeto, { textoAssets, avisosAssets = [], imagensAtuais = null }) {
   const atual = conversaAtual(projeto);
   const outras = projeto.conversas.filter((c) => c.id !== atual.id && c.mensagens.length);
   const arquivos = Object.entries(projeto.arquivos)
@@ -82,6 +82,8 @@ export function montarPedido(projeto, { textoAssets, avisosAssets = [] }) {
     }));
   // imagens só da última mensagem do usuário (economiza)
   historico.forEach((m, i) => { if (i < historico.length - 1) m.imagens = []; });
+  // a mensagem guarda só miniaturas; as imagens em tamanho bom vêm à parte, só no pedido em que foram anexadas
+  if (imagensAtuais && historico.length && historico[historico.length - 1].papel === 'usuario') historico[historico.length - 1].imagens = imagensAtuais;
 
   return { sistema: `${REGRAS}\n\n---\n${contexto}`, mensagens: historico };
 }

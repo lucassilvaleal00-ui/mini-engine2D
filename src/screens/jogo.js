@@ -10,10 +10,10 @@
  * ela anota em "pendências".
  */
 
-import { h, preencher, adicionar } from '../ui/dom.js';
+import { h, preencher } from '../ui/dom.js';
 import { aviso, avisarErro, mensagemDeErro } from '../ui/toast.js';
 import { abrirDialogo, confirmar } from '../ui/dialogos.js';
-import { formatarDataHora, pluralizar } from '../ui/formato.js';
+import { formatarDataHora } from '../ui/formato.js';
 import { conversar, temAlgumaChave, modeloEscolhido, lerChave } from '../core/ia.js';
 import {
   listarProjetos, criarProjeto, abrirProjeto, salvarProjeto, conversaAtual, novaConversa,
@@ -155,7 +155,7 @@ const DICAS = [
   ['@[nome com espaço]', 'nomes com espaço vão entre colchetes; digite @ e escolha na lista'],
 ];
 
-async function montarProjeto(el, { parametro, navegar }) {
+async function montarProjeto(el, { parametro, navegar, voltar }) {
   const aberto = await abrirProjeto(parametro).catch(() => null);
   if (!aberto) {
     aviso('Esse projeto não existe mais (ou está na lixeira).', { tipo: 'erro' });
@@ -219,7 +219,7 @@ async function montarProjeto(el, { parametro, navegar }) {
 
   const raiz = h('div', { class: 'jogo-tela', 'data-aba': aba },
     h('header', { class: 'topo jogo-cabeca' },
-      h('button', { class: 'botao', type: 'button', 'aria-label': 'Voltar', onclick: () => navegar('/jogo') }, '←'),
+      h('button', { class: 'botao', type: 'button', 'aria-label': 'Voltar', onclick: () => voltar('/jogo') }, '←'),
       projeto.capa ? h('img', { class: 'jogo-capa', src: projeto.capa, alt: '' }) : null,
       h('h1', { class: 'jogo-titulo' }, projeto.nome)),
     abas,
@@ -419,7 +419,9 @@ async function montarProjeto(el, { parametro, navegar }) {
     indice = indice || await montarIndice();
     const { itens, naoEncontradas } = resolverMencoes(extrairMencoes(t), indice);
     for (const it of itens) if (!projeto.referencias.includes(it.bruto)) projeto.referencias.push(it.bruto);
-    conversa.mensagens.push({ id: novoIdCurto(), papel: 'usuario', texto: t, em: Date.now(), imagens, auto });
+    // no projeto (que vai para a nuvem) ficam só miniaturas; a IA recebe as imagens boas neste pedido
+    const miniaturas = await Promise.all(imagens.map((src) => miniatura(src).catch(() => null)));
+    conversa.mensagens.push({ id: novoIdCurto(), papel: 'usuario', texto: t, em: Date.now(), imagens: miniaturas.filter(Boolean), auto });
     if (conversa.mensagens.filter((m) => m.papel === 'usuario').length === 1 && /^Conversa \d+$/.test(conversa.titulo)) {
       conversa.titulo = t.replace(/\s+/g, ' ').slice(0, 40) + (t.length > 40 ? '…' : '');
       desenharConversas();
@@ -438,7 +440,7 @@ async function montarProjeto(el, { parametro, navegar }) {
     let mudouArquivos = false;
     try {
       const assets = await montarAssets(projeto.referencias, indice);
-      const pedido = montarPedido(projeto, { textoAssets: descreverAssets(assets), avisosAssets: assets.avisos });
+      const pedido = montarPedido(projeto, { textoAssets: descreverAssets(assets), avisosAssets: assets.avisos, imagensAtuais: imagens.length ? imagens : null });
       cancelador = new AbortController();
       const modelo = modeloEscolhido();
       const resposta = await conversar({ modelo, sistema: pedido.sistema, mensagens: pedido.mensagens, sinal: cancelador.signal });
@@ -621,6 +623,22 @@ async function montarProjeto(el, { parametro, navegar }) {
     globalThis.removeEventListener('miniengine:nuvem', aoSincronizar);
     palco.destruir();
   };
+}
+
+/** Miniatura (até 160 px, JPEG) de uma imagem em data URL. */
+async function miniatura(src) {
+  const img = new Image();
+  img.src = src;
+  await img.decode();
+  const escala = Math.min(1, 160 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.naturalWidth * escala));
+  c.height = Math.max(1, Math.round(img.naturalHeight * escala));
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.8);
 }
 
 /** Imagem anexada ao chat: até 1024 px, JPEG (para não pesar no pedido). */
