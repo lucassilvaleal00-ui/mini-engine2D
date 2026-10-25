@@ -60,6 +60,7 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Conversas ligadas: cada pedido leva a memória do projeto, os arquivos atuais, os assets e os títulos das outras conversas; só as últimas 16 mensagens da conversa atual.
 - `@`: `@desenho`, `@pasta/`, `@desenho.camada`, `@cenário`, `@[nome com espaço]`; `@desenho:ação` aceita, mas usa o desenho inteiro até existirem ações (2b). Desenho = cadeia `base_NN`; vira spritesheet `key` + animação pronta. No jogo: `carregarAssets(this)` no preload e `criarAnimacoes(this)` no create; `ASSETS`, `CENARIOS`, `DADOS`.
 - Jogo em `<iframe sandbox="allow-scripts">` (srcdoc); cada .js vira um blob (erros com arquivo e linha); pausar/continuar por postMessage; correção automática até 3 vezes; versões com "Desfazer esta mudança".
+- O "Chamar IA" do editor já tem o botão Modelo IA (mesma escolha/chaves do Criar jogo). Imagens anexadas no chat: a IA recebe a versão até 1024 px; o projeto guarda só miniaturas (160 px).
 - **Ainda falta da Etapa 5:** o "Solicitar IA" nos sprites (com o comando `aprimorar`, mostrar o resultado antes e entregar frame por frame), que vai reaproveitar o `core/ia.js`.
 
 ## Pedidos do usuário para as próximas etapas (registrados na Etapa 3, ainda NÃO implementados)
