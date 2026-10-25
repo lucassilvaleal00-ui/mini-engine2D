@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Etapa atual: 3 de 7 — concluída** (exportar e importar, imagem de inspiração, variações sem IA e backup em ZIP). As Etapas 1 (tela inicial, armazenamento e gerenciador) e 2a (editor de pixel art) continuam como estavam. Ainda faltam o painel de camadas e a Etapa 2b (ações e propriedades).
+**Etapa atual: 3 de 7 — concluída, mais a sincronização na nuvem** (exportar e importar, imagem de inspiração, variações sem IA, backup em ZIP e sincronização PC ↔ celular pelo Supabase). As Etapas 1 (tela inicial, armazenamento e gerenciador) e 2a (editor de pixel art) continuam como estavam. Ainda faltam o painel de camadas e a Etapa 2b (ações e propriedades).
 
 ## O que a Etapa 1 entrega
 
@@ -51,6 +51,35 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - Os codificadores de ZIP, PNG e GIF foram escritos para o projeto (sem biblioteca extra em `vendor/`).
 
 **Pedidos já registrados, para as etapas certas** (ainda **não** implementados, porque dependem de telas que não existem): na Etapa 5 (IA) o comando **"aprimorar"**, a IA **mostrar o resultado primeiro** e entregar **frame por frame** quando o pedido tiver vários frames; na Etapa 4 (cenário) **mover os itens segurando e arrastando**, respeitando a ordem de profundidade 1, 2 e 3. Os detalhes estão em [`docs/CONTEXTO.md`](docs/CONTEXTO.md), e a aba "Chamar IA" já lista isso.
+
+## Sincronização na nuvem (PC ↔ celular)
+
+O app continua guardando tudo no navegador (funciona sem internet), e agora **também** sincroniza com um banco no **Supabase**. Assim o que você faz no PC aparece no celular e vice-versa.
+
+- **Tela Nuvem** (tela inicial → rodapé **☁️ Nuvem**, rota `#/nuvem`): *Criar conta* na primeira vez, *Entrar* nos outros aparelhos com o mesmo e-mail e senha, *Sincronizar agora* e *Sair desta conta neste aparelho*.
+- **Automática:** sincroniza ao abrir o app, uns 3 segundos depois de qualquer alteração, ao voltar para a aba, quando a internet volta e a cada minuto com o app aberto. O rodapé da tela inicial mostra a situação (*Sincronizado · horário*, *Sincronizando…*, *Sem internet · 2 alterações esperando*).
+- **Ao entrar num aparelho**, o que já está nele é enviado e se junta ao que já está na nuvem. Nada é apagado.
+- **Conflito** (o mesmo item mudou nos dois aparelhos antes de sincronizar): a versão da nuvem fica no lugar e a deste aparelho aparece ao lado como `nome (conflito)`, com um aviso. Você confere e apaga a que não quiser.
+- **Vai para a nuvem:** pastas, sprites (com a imagem de inspiração), cenários, jogos, a lixeira e as exclusões. **Não vai:** chaves de API das IAs e o rascunho do editor.
+- O Gerenciador e a Lixeira se atualizam sozinhos quando chega algo do outro aparelho.
+
+### Configuração do Supabase (já feita)
+
+1. A tabela `itens` com as regras de acesso (cada conta só vê o que é dela) foi criada com o SQL de [`docs/supabase.sql`](docs/supabase.sql).
+2. Em *Authentication → Sign In / Providers → Email*, **Confirm email** está desligado.
+3. **Depois de criar a sua conta no app**, desligue também **Allow new users to sign up** no mesmo lugar. Assim ninguém mais cria conta no seu banco usando a chave pública.
+
+O endereço do projeto e a chave **anon public** estão em `src/core/nuvem.js`. Essa chave foi feita para ficar no código do site. **Nunca** coloque ali a chave `service_role`.
+
+**Plano grátis:** o Supabase pausa o projeto depois de cerca de 7 dias sem nenhum uso. Se a sincronização parar com erro de servidor, abra o painel do Supabase e reative o projeto.
+
+### Como testar a sincronização
+
+1. No PC: tela inicial → **☁️ Nuvem** → digite e-mail e senha (mínimo 6 caracteres) → **Criar conta**. A situação vira *Sincronizado*.
+2. No celular: abra o site → **☁️ Nuvem** → mesmo e-mail e senha → **Entrar**. No Gerenciador aparecem as pastas do PC; abra um desenho e ele está igual.
+3. Crie uma pasta no celular. Em alguns segundos ela aparece no Gerenciador do PC (se demorar, toque em *Sincronizar agora*).
+4. Ligue o modo avião no celular, renomeie algo: o rodapé mostra *Sem internet · 1 alteração esperando*. Desligue o modo avião: a alteração sobe sozinha.
+5. Desligue **Allow new users to sign up** no Supabase (passo 3 da configuração).
 
 ## Como testar a Etapa 3 ("pronto quando")
 
@@ -101,7 +130,7 @@ Abra `http://localhost:8000`. No Windows, se o comando `python3` não existir, u
 4. Em 1 a 2 minutos o site fica em `https://SEU-USUARIO.github.io/mini-engine/`.
 5. Depois de enviar uma atualização, se o navegador mostrar a versão antiga, recarregue ignorando o cache (Ctrl+Shift+R no PC; no celular, limpe os dados do site ou abra em aba anônima).
 
-> Os desenhos ficam no navegador de **cada aparelho**. Para levar tudo do PC ao celular (ou o contrário), baixe um **backup em ZIP** num aparelho e **restaure** no outro (tela inicial → Backup).
+> Os desenhos ficam no navegador de cada aparelho **e**, com a conta ligada (tela **☁️ Nuvem**), também no Supabase, que mantém o PC e o celular iguais.
 
 ## Como testar a Etapa 1 ("pronto quando")
 
@@ -135,6 +164,8 @@ src/
     router.js         rotas por hash (#/gerenciador/ID) e botão voltar
     zip.js            ler e escrever ZIP (com proteção contra arquivos maliciosos)
     backup.js         montar e restaurar o backup em ZIP
+    nuvem.js          conversa com o Supabase (login e tabela itens), só com fetch
+    sincronia.js      sincronização automática: puxar, enviar, conflitos
   ui/                 dom.js, dialogos.js, toast.js, formato.js, baixar.js
   editor/             o editor de pixel art (etapas 2a e 3), em módulos pequenos
     documento.js      modelo do desenho, paleta padrão, conversão de/para o JSON do sprite
@@ -151,10 +182,10 @@ src/
     referencia.js     painel da imagem de inspiração
     dialogos-arquivo.js, dialogos-variacoes.js   janelas de exportar, importar, tom e neve
     painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
-  screens/            inicio, gerenciador, lixeira, backup, diagnostico, editor, em-breve
+  screens/            inicio, gerenciador, lixeira, backup, nuvem, diagnostico, editor, em-breve
   css/                app.css (tema escuro) e editor.css
 vendor/               phaser.min.js + vendor.json
-docs/                 ARQUITETURA.md e CONTEXTO.md
+docs/                 ARQUITETURA.md, CONTEXTO.md e supabase.sql (tabela da nuvem)
 ```
 
 ## Regras de nome (valem para pastas e itens)
@@ -164,6 +195,7 @@ docs/                 ARQUITETURA.md e CONTEXTO.md
 
 ## Limites conhecidos
 
+- Com a nuvem ligada, os dados também ficam no Supabase. Sem ela:
 - **O navegador pode apagar os dados do site** se o aparelho ficar sem espaço (principalmente o Safari do iPhone, que limpa sites não usados por semanas). O app pede armazenamento persistente quando você salva o primeiro item, mas o navegador pode recusar. A proteção de verdade é o **backup em ZIP** (tela inicial → Backup): faça um de vez em quando e guarde o arquivo fora do navegador.
 - Uma aba anônima não guarda nada depois de fechada.
 
