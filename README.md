@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Etapa atual: 3 de 7 — concluída, mais a sincronização na nuvem** (exportar e importar, imagem de inspiração, variações sem IA, backup em ZIP e sincronização PC ↔ celular pelo Supabase). As Etapas 1 (tela inicial, armazenamento e gerenciador) e 2a (editor de pixel art) continuam como estavam. Ainda faltam o painel de camadas e a Etapa 2b (ações e propriedades).
+**Situação:** prontos a Etapa 1 (início, armazenamento, gerenciador), a 2a (editor de pixel art), a 3 (arquivos, imagem de inspiração, variações, backup), a sincronização PC ↔ celular (Supabase) e o **Criar jogo** com o módulo de IA (etapas 5 e 6, feitas antes da 4 a seu pedido). Últimos ajustes: o botão "Adicionar imagem de inspiração" voltou a abrir a janela de arquivos, e o cursor vira um balde ou um conta-gotas ao usar essas ferramentas. **Próxima:** Etapa 4 (Construtor de cenário). Ainda faltam também o painel de camadas, a Etapa 2b (ações e propriedades) e o "Solicitar IA" nos sprites.
 
 ## O que a Etapa 1 entrega
 
@@ -51,6 +51,39 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - Os codificadores de ZIP, PNG e GIF foram escritos para o projeto (sem biblioteca extra em `vendor/`).
 
 **Pedidos já registrados, para as etapas certas** (ainda **não** implementados, porque dependem de telas que não existem): na Etapa 5 (IA) o comando **"aprimorar"**, a IA **mostrar o resultado primeiro** e entregar **frame por frame** quando o pedido tiver vários frames; na Etapa 4 (cenário) **mover os itens segurando e arrastando**, respeitando a ordem de profundidade 1, 2 e 3. Os detalhes estão em [`docs/CONTEXTO.md`](docs/CONTEXTO.md), e a aba "Chamar IA" já lista isso.
+
+## Criar jogo (chat com a IA + teste ao vivo)
+
+- **Tela inicial → Criar jogo**: lista os projetos. **＋ Adicionar novo projeto** pede o **nome** e uma **imagem** (a capa). Cada projeto é um jogo diferente e é salvo como um item "jogo": entra no backup e sincroniza com a nuvem.
+- **Tela do projeto** (como no seu desenho):
+  - **à esquerda, o chat** com a IA, as **Dicas de comandos** e a caixa "Escreva aqui…", com 📎 (anexar imagem), **Modelo IA** e **＋ Nova conversa**;
+  - **à direita, a área de teste**: o jogo roda ao vivo e você já pode jogar. Enquanto a IA trabalha, o jogo fica **pausado**; enquanto não existe jogo, a área fica **bloqueada** (🔒). Embaixo fica o console do jogo, e o botão **</> Código** mostra os arquivos;
+  - **no celular**, as mesmas partes viram abas: **Chat | Jogo | Código**.
+- **Chamar seus desenhos com @** (as Dicas de comandos explicam):
+  - `@heroi` chama um desenho com todos os frames;
+  - `@Inimigos/` chama todos os desenhos de uma pasta e das subpastas;
+  - `@heroi.roupa` chama só uma camada;
+  - `@floresta` chama um cenário;
+  - `@[nome com espaço]` serve para nomes com espaço.
+
+  Ao digitar `@` aparece a lista para escolher. O app transforma cada desenho num sprite sheet, e a IA usa só os nomes que existem. Se você editar o sprite no editor, o jogo muda na próxima vez que rodar.
+- **Modelo IA:** Gemini (Google) ou OpenRouter. A lista de modelos vem do próprio provedor. A **chave fica só neste aparelho**: não vai para a nuvem, nem para o backup, nem para o jogo. No outro aparelho, cole de novo.
+- **A IA programa com Phaser 3.90**:
+  - a resposta mostra o que ela fez e quais arquivos mudou (✎ main.js…);
+  - o que falta você fazer aparece como 📌 (por exemplo, "desenhar uma moeda");
+  - se o jogo der **erro**, ela recebe o erro e **corrige sozinha** (até 3 tentativas);
+  - cada resposta tem **↩ Desfazer esta mudança**.
+- **Conversas ligadas:** "＋ Nova conversa" abre uma conversa limpa no mesmo projeto. A IA continua lembrando do jogo, porque recebe a **memória do projeto** (que ela mesma atualiza), os arquivos, os desenhos chamados e os títulos das outras conversas.
+- **Segurança:** o jogo roda isolado (`iframe sandbox` sem `allow-same-origin`). O código gerado pela IA não consegue ler as suas chaves nem os seus dados.
+
+### Como testar o Criar jogo
+
+1. Pegue uma chave grátis do Gemini em https://aistudio.google.com/apikey (ou uma do OpenRouter em https://openrouter.ai/keys).
+2. Tela inicial → **Criar jogo** → **＋ Adicionar novo projeto** → nome + imagem → **Criar**.
+3. Escreva: `Crie um jogo simples onde @` e escolha um desenho seu na lista; complete com `anda pela tela com setas e toque`. Toque em **Enviar**. Na primeira vez abre o **Modelo IA**: cole a chave, **Salvar chave**, escolha o modelo e **Usar este modelo**.
+4. Enquanto a IA escreve, a área de teste fica pausada. Depois o jogo aparece e você já pode jogar. No celular, vá na aba **Jogo**.
+5. Peça uma mudança ("adicione pulo"). Se der erro, veja a correção automática. Teste **↩ Desfazer esta mudança**.
+6. Toque em **＋ Nova conversa** e pergunte "o que o jogo já tem?": ela lembra.
 
 ## Sincronização na nuvem (PC ↔ celular)
 
@@ -166,6 +199,7 @@ src/
     backup.js         montar e restaurar o backup em ZIP
     nuvem.js          conversa com o Supabase (login e tabela itens), só com fetch
     sincronia.js      sincronização automática: puxar, enviar, conflitos
+    ia.js             módulo de IA (Gemini e OpenRouter): chaves, modelos, conversar
   ui/                 dom.js, dialogos.js, toast.js, formato.js, baixar.js
   editor/             o editor de pixel art (etapas 2a e 3), em módulos pequenos
     documento.js      modelo do desenho, paleta padrão, conversão de/para o JSON do sprite
@@ -182,8 +216,11 @@ src/
     referencia.js     painel da imagem de inspiração
     dialogos-arquivo.js, dialogos-variacoes.js   janelas de exportar, importar, tom e neve
     painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
-  screens/            inicio, gerenciador, lixeira, backup, nuvem, diagnostico, editor, em-breve
-  css/                app.css (tema escuro) e editor.css
+  screens/            inicio, gerenciador, lixeira, backup, nuvem, jogo, diagnostico, editor, em-breve
+  jogo/               Criar jogo: projeto.js (dados), mencoes.js (@), assets.js (sprite sheets),
+                      conversa.js (o que a IA recebe e como a resposta vira arquivos), palco.js (iframe),
+                      dialogo-modelo.js (Modelo IA e chaves)
+  css/                app.css (tema escuro), editor.css e jogo.css
 vendor/               phaser.min.js + vendor.json
 docs/                 ARQUITETURA.md, CONTEXTO.md e supabase.sql (tabela da nuvem)
 ```
@@ -207,8 +244,8 @@ docs/                 ARQUITETURA.md, CONTEXTO.md e supabase.sql (tabela da nuve
 | 2 | Editor de pixel art — **2a: desenho, frames, paleta, salvar ✔** · camadas (painel) · 2b: ações e propriedades |
 | 3 | Importar/exportar, imagem de inspiração, variações e backup em ZIP ✔ |
 | 4 | Construção de cenário |
-| 5 | Módulo de chat com IA e "Solicitar IA" nos sprites |
-| 6 | Criar jogo (chat, teste ao vivo, correção automática) |
+| 5 | Módulo de chat com IA ✔ (Gemini e OpenRouter) · falta o "Solicitar IA" nos sprites |
+| 6 | Criar jogo (chat, teste ao vivo, correção automática) ✔ |
 | 7 | Entrega (ZIP do jogo, PWA ou Capacitor, sincronização com GitHub) |
 
 Detalhes das decisões em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md). O texto de contexto para colar no início de cada nova etapa está em [`docs/CONTEXTO.md`](docs/CONTEXTO.md).
