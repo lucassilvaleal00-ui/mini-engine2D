@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Etapa atual: 1 de 7 — concluída** (tela inicial, armazenamento e gerenciador de pastas).
+**Etapa atual: 2a de 7 — concluída** (editor de pixel art: desenho, frames, paleta e salvamento nas pastas). A Etapa 1 (tela inicial, armazenamento e gerenciador) continua como estava.
 
 ## O que a Etapa 1 entrega
 
@@ -12,6 +12,35 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - **Armazenamento por tipo de item** (`sprite`, `cenario`, `jogo`, além de `pasta`), já pronto para o editor, o construtor de cenários e o criador de jogos guardarem seus dados no mesmo lugar.
 - **Phaser 3.90.0** incluído localmente em `vendor/`, com uma página de **Diagnóstico** que prova que ele carrega e desenha.
 - Interface escura em português, feita para toque (celular) e mouse (PC).
+
+## O que a Etapa 2a entrega (editor de pixel art)
+
+- **Criar ou abrir:** ao entrar no Editor, o app pergunta. *Criar* pede **nome, largura e altura** (4 a 128 pixels; atalhos 16, 32, 48 e 64). *Abrir* mostra as suas pastas com os desenhos salvos; tocar em um desenho abre o editor com ele. Se você saiu sem salvar, aparece também *Continuar rascunho*.
+- **Layout:** frames no topo, aba **Cores** retrátil à esquerda, tela de desenho transparente no centro, aba **Chamar IA** retrátil à direita e as ferramentas embaixo. No celular as abas abrem por cima do desenho e fecham ao tocar de novo; no computador elas empurram o desenho.
+- **Ferramentas (inspiradas no Piskel):** Lápis `P`, Borracha `E`, Balde `B` (com "todas da mesma cor"), Linha `L`, Retângulo `R`, Círculo/elipse `C` (vazados ou preenchidos), Conta-gotas `O`, Selecionar `Q` (arrastar de dentro move o conteúdo), Mover tudo `M` e Mão `H`. Opções: pincel 1 a 4 (`[` e `]`), espelho ↔ ↕ ✛ (desenha simétrico), grade `G` e papel cebola `U` (mostra o frame anterior esmaecido).
+- **Zoom e movimento:** botões ＋ － ⤢, `+`/`-`, roda do mouse, pinça no celular. Para mover a vista: ferramenta Mão, botão do meio do mouse, barra de espaço ou dois dedos.
+- **Desfazer/refazer** (até 50 passos): botões ou `Ctrl+Z` / `Ctrl+Y`.
+- **Transformar** (botão ⇄ no topo): espelhar o frame ou todos os frames (ex.: andar para a esquerda → direita), girar 90°, limpar o frame; com uma seleção ativa, age só nela.
+- **Frames:** *Adicionar frame*, duplicar, excluir, mover ◀ ▶, prévia animada com play/pause e fps.
+- **Paleta:** 16 cores prontas (Sweetie 16, domínio público) mais a transparente. *Adicionar* abre um seletor no estilo do Piskel (quadrado de saturação/brilho, barra de matiz e campo `#hex`); *Editar* troca a cor **em todos os pixels que a usam**; *Apagar* avisa quantos pixels ficarão transparentes e dá para desfazer. Máximo de 36 itens (35 cores + transparente), por causa do formato do sprite.
+- **Salvar:** pede o nome (pode mudar) e a pasta (com **＋ Nova pasta** dentro do próprio diálogo). **Cada frame vira um arquivo separado**: `heroi_01`, `heroi_02`… (3 dígitos a partir de 100 frames). Se já existir arquivo com o mesmo nome na pasta, aparece um **aviso** e o botão passa a dizer *Substituir*. Salvar de novo o mesmo desenho atualiza os mesmos arquivos (sem aviso); se você tiver apagado frames, os arquivos que sobram vão para a lixeira.
+- **Abrir uma cadeia:** o editor junta `heroi_01`, `heroi_02`… em **um desenho só**. No Gerenciador, tocar em qualquer um deles abre o desenho inteiro. Arquivos com tamanho diferente do resto da cadeia ficam de fora (com aviso). Um sprite sem sufixo (como os de exemplo do Diagnóstico) abre normalmente e ganha `_01` ao ser salvo.
+- **Rascunho automático:** cerca de 1 segundo depois de qualquer alteração o app guarda um rascunho no navegador. Se a aba fechar, o celular reiniciar ou você tocar em voltar, o desenho volta pelo botão *Continuar rascunho*. Rascunho **não** é o mesmo que salvar: só o *Salvar* cria os arquivos nas pastas.
+- **A aba "Chamar IA" ainda é só visual.** Ela mostra como vai funcionar (a IA usa as mesmas ferramentas do editor, entrega o resultado **em um frame novo**, aceita imagem de inspiração e pode partir do zero ou do primeiro frame), mas o chat de verdade chega na Etapa 5.
+
+**Ainda não está nesta parte:** painel de camadas (o formato do arquivo já suporta várias camadas, falta o painel), ações como "andar" e "correr" e propriedades como origem e hitbox (Etapa 2b), exportar PNG/GIF e backup em ZIP (Etapa 3).
+
+## Como testar a Etapa 2a ("pronto quando")
+
+1. Tela inicial → **Editor de pixel art** → **Criar**. Digite `heroi`, escolha 32×32 e confirme.
+2. Desenhe com o lápis; escolha outra cor na aba **Cores**. Teste borracha, balde, linha, retângulo e círculo. `Ctrl+Z` desfaz.
+3. Toque em **Adicionar frame**, desenhe algo diferente e use o play da prévia para ver a animação.
+4. Na aba **Cores**, toque em **Adicionar**, mude a cor no quadrado e na barra e confirme. Desenhe com ela, depois use **Editar** e veja os pixels mudarem de cor. Tente **Apagar** uma cor.
+5. Toque em **Salvar**, crie a pasta `Personagens` pelo diálogo e salve. No **Gerenciador**, a pasta tem `heroi_01` e `heroi_02`.
+6. Volte ao Editor → **Criar** → mesmo nome `heroi` → desenhe um pixel → **Salvar** em `Personagens`: o aviso de nome repetido aparece e o botão vira *Substituir*. Troque o nome e o aviso some.
+7. Saia pela seta no topo (confirme *Sair e guardar rascunho*), volte ao Editor e use **Continuar rascunho**.
+8. Editor → **Abrir** → `Personagens` → `heroi`: os 2 frames voltam como estavam. Feche o navegador por completo, reabra e repita.
+9. No celular, confira que as abas **Cores** e **Chamar IA** abrem e fecham, e que o dedo desenha.
 
 ## Como testar no computador
 
@@ -75,8 +104,16 @@ src/
     modelos.js        sprite/cenário em branco
     router.js         rotas por hash (#/gerenciador/ID) e botão voltar
   ui/                 dom.js, dialogos.js, toast.js, formato.js
-  screens/            inicio, gerenciador, lixeira, diagnostico, em-breve
-  css/app.css         tema escuro
+  editor/             o editor de pixel art (etapa 2a), em módulos pequenos
+    documento.js      modelo do desenho, paleta padrão, conversão de/para o JSON do sprite
+    controlador.js    todas as ações de edição como funções + desfazer/refazer (sem tela)
+    algoritmos.js     linha, elipse, balde, espelhar, girar… (sem tela)
+    ferramentas.js    lápis, borracha, balde, linha, retângulo, círculo, conta-gotas, seleção, mover, mão
+    vista.js          tela de desenho: zoom, mover, grade, cebola, toque e mouse
+    arquivo.js        salvar/abrir os frames nas pastas (nome_01, nome_02…) e rascunho
+    painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
+  screens/            inicio, gerenciador, lixeira, diagnostico, editor, em-breve
+  css/                app.css (tema escuro) e editor.css
 vendor/               phaser.min.js + vendor.json
 docs/                 ARQUITETURA.md e CONTEXTO.md
 ```
@@ -96,7 +133,7 @@ docs/                 ARQUITETURA.md e CONTEXTO.md
 | # | Etapa |
 |---|-------|
 | 1 | Tela inicial, armazenamento e gerenciador de pastas ✔ |
-| 2 | Editor de pixel art (a: desenho, camadas, quadros · b: ações e propriedades) |
+| 2 | Editor de pixel art — **2a: desenho, frames, paleta, salvar ✔** · camadas (painel) · 2b: ações e propriedades |
 | 3 | Importar/exportar e backup em ZIP |
 | 4 | Construção de cenário |
 | 5 | Módulo de chat com IA e "Solicitar IA" nos sprites |
