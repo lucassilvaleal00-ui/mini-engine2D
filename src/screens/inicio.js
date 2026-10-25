@@ -22,7 +22,7 @@ const CARTOES = [
     texto: 'Monte cenários com seus sprites e defina as camadas de profundidade.',
   },
   {
-    rota: '/jogo', icone: '🎮', titulo: 'Criar jogo', pronto: false,
+    rota: '/jogo', icone: '🎮', titulo: 'Criar jogo', pronto: true,
     texto: 'Converse com a IA para criar lógica, regras e história — e teste ao vivo.',
   },
 ];
@@ -84,7 +84,7 @@ export async function montar(el, { navegar }) {
       botaoNuvem,
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/backup') }, '💾 Backup'),
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/diagnostico') }, '🔧 Diagnóstico'),
-      h('span', {}, 'Etapa 3 · arquivos + nuvem')),
+      h('span', {}, 'Etapa 6 · criar jogo')),
   ]);
   return () => globalThis.removeEventListener('miniengine:nuvem', atualizarNuvem);
 }

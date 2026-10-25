@@ -321,6 +321,17 @@ export function listarPastas() {
   });
 }
 
+/** Todos os itens ativos (fora da lixeira), só metadados. Usado para montar a lista do `@` no Criar jogo. */
+export function listarAtivos() {
+  return transacao('readonly', async ({ itens }) => (await pedido(itens.getAll())).filter(ativo));
+}
+
+/** Itens ativos de um tipo, em qualquer pasta, do mais recente ao mais antigo. */
+export function listarPorTipo(tipo) {
+  return transacao('readonly', async ({ itens }) => (await pedido(itens.index('tipo').getAll(tipo)))
+    .filter(ativo).sort((a, b) => b.atualizadoEm - a.atualizadoEm));
+}
+
 /** Sugere um nome livre numa pasta (ex.: "Exemplo" -> "Exemplo (2)"). */
 export function nomeDisponivel(paiId, base) {
   return transacao('readonly', (s) => nomeLivre(s, paiId, base));

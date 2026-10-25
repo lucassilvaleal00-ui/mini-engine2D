@@ -83,6 +83,8 @@ class VistaImagem {
     this.aoPassar = aoPassar;
     this.canvas = h('canvas', { class: 'ref-canvas', 'aria-label': 'Imagem de inspiração: toque para pegar uma cor' });
     this.ctx = this.canvas.getContext('2d');
+    // Sem imagem, o canvas fica escondido: senão ele cobre o botão "Adicionar imagem" e o clique não chega nele.
+    this.canvas.hidden = true;
     palco.append(this.canvas);
     this.img = null;       // canvas com a imagem em tamanho real
     this.leitor = null;    // contexto de leitura de pixels
@@ -110,7 +112,7 @@ class VistaImagem {
   async definir(dados) {
     this.marca = null;
     this.hover = null;
-    if (!dados) { this.img = null; this.leitor = null; this.desenhar(); return; }
+    if (!dados) { this.img = null; this.leitor = null; this.canvas.hidden = true; this.desenhar(); return; }
     const imagem = new Image();
     imagem.src = dados;
     await imagem.decode();
@@ -121,6 +123,7 @@ class VistaImagem {
     ctx.drawImage(imagem, 0, 0);
     this.img = c;
     this.leitor = ctx;
+    this.canvas.hidden = false;
     this._auto = true;
     this.ajustar();
   }

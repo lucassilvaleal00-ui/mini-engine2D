@@ -39,7 +39,7 @@ export function aviso(texto, { tipo = 'info', acao = null, duracao } = {}) {
 }
 
 /** Mostra um erro de forma amigável (mensagens do armazenamento já são em português). */
-const ERROS_COM_MENSAGEM = ['ErroDeArmazenamento', 'ErroDoEditor', 'ErroDeZip', 'ErroDeBackup', 'ErroDaNuvem'];
+const ERROS_COM_MENSAGEM = ['ErroDeArmazenamento', 'ErroDoEditor', 'ErroDeZip', 'ErroDeBackup', 'ErroDaNuvem', 'ErroDaIA'];
 
 export function avisarErro(erro) {
   const amigavel = ERROS_COM_MENSAGEM.includes(erro?.name);

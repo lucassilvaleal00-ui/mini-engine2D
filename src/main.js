@@ -15,7 +15,8 @@ import * as editor from './screens/editor.js';
 import * as backup from './screens/backup.js';
 import * as nuvem from './screens/nuvem.js';
 import { iniciarSincronia } from './core/sincronia.js';
-import { cenario, jogo } from './screens/em-breve.js';
+import * as jogo from './screens/jogo.js';
+import { cenario } from './screens/em-breve.js';
 
 // Mostra erros inesperados na tela (no celular ninguém vê o console).
 window.addEventListener('unhandledrejection', (e) => {
