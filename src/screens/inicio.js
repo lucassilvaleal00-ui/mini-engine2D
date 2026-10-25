@@ -5,6 +5,8 @@
 import { h, adicionar } from '../ui/dom.js';
 import { estatisticas } from '../core/storage.js';
 import { situacaoDoBackup, mensagemDeLembrete, adiarLembrete, lerAdiamento } from '../core/backup.js';
+import { estadoDaSincronia } from '../core/sincronia.js';
+import { textoDaSituacao } from './nuvem.js';
 
 const CARTOES = [
   {
@@ -44,6 +46,15 @@ export async function montar(el, { navegar }) {
       }, 'Agora não'),
       h('button', { class: 'botao primario', type: 'button', onclick: () => navegar('/backup') }, 'Fazer backup')));
 
+  const botaoNuvem = h('button', { class: 'link nuvem-rodape', type: 'button', onclick: () => navegar('/nuvem') });
+  const atualizarNuvem = () => {
+    const e = estadoDaSincronia();
+    botaoNuvem.textContent = `☁️ ${e.fase === 'desligada' ? 'Nuvem' : textoDaSituacao(e)}`;
+    botaoNuvem.dataset.fase = e.fase;
+  };
+  atualizarNuvem();
+  globalThis.addEventListener('miniengine:nuvem', atualizarNuvem);
+
   adicionar(el, [
     h('header', { class: 'marca' },
       h('h1', {}, 'Mini Engine'),
@@ -70,8 +81,10 @@ export async function montar(el, { navegar }) {
     h('footer', { class: 'rodape' },
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/lixeira') },
         lixeira ? `🗑️ Lixeira (${lixeira})` : '🗑️ Lixeira'),
+      botaoNuvem,
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/backup') }, '💾 Backup'),
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/diagnostico') }, '🔧 Diagnóstico'),
-      h('span', {}, 'Etapa 3 · arquivos')),
+      h('span', {}, 'Etapa 3 · arquivos + nuvem')),
   ]);
+  return () => globalThis.removeEventListener('miniengine:nuvem', atualizarNuvem);
 }

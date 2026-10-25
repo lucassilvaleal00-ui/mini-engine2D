@@ -460,3 +460,11 @@ h1:focus, h1:focus-visible { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Nuvem ---------- */
+.nuvem-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.nuvem-titulo { margin: 0 0 4px; font: 700 .95rem var(--fonte-pixel); letter-spacing: .04em; text-transform: uppercase; }
+.nuvem-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.nuvem-form .aviso-caixa { margin: 4px 0 0; }
+.nuvem-rodape[data-fase="erro"] { color: #ff8a8a; }
+.nuvem-rodape[data-fase="sem_rede"] { color: var(--acento); }

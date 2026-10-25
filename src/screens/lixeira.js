@@ -110,5 +110,9 @@ export async function montar(el, { navegar, voltar }) {
     });
   }
 
+  const aoSincronizar = (e) => { if (e.detail?.mudou) tentar(desenhar); };
+  globalThis.addEventListener('miniengine:nuvem', aoSincronizar);
+
   await desenhar();
+  return () => globalThis.removeEventListener('miniengine:nuvem', aoSincronizar);
 }

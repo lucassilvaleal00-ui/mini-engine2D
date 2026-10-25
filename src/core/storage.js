@@ -16,6 +16,12 @@
  *   - Excluir manda a pasta e TODO o conteúdo para a lixeira como um "lote"
  *     (lixeiraLote). Só o item excluído diretamente tem lixeiraRaiz = true.
  *   - Itens na lixeira nunca aparecem nas listagens normais.
+ *
+ * SINCRONIZAÇÃO (nuvem)
+ *   Toda escrita marca os ids alterados como "pendentes" (chave `nuvem.pendentes`
+ *   na store meta, dentro da MESMA transação). O módulo core/sincronia.js lê essas
+ *   pendências, envia, e aplica o que chega de outros aparelhos pelas funções
+ *   `nuvem*` no fim deste arquivo. As telas não precisam saber de nada disso.
  */
 
 import { transacao, pedido } from './db.js';
@@ -37,6 +43,14 @@ const coletor = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' 
 const chaveDoNome = (nome) => nome.normalize('NFC').toLocaleLowerCase('pt-BR');
 const agora = () => Date.now();
 const ativo = (item) => !!item && !item.lixeiraLote;
+
+/** JSON com as chaves em ordem: dois objetos iguais dão o mesmo texto (o jsonb do servidor reordena chaves). */
+export function textoEstavel(valor) {
+  return JSON.stringify(valor === undefined ? null : valor, (_, v) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+    return Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]));
+  });
+}
 
 // Estes símbolos são reservados para chamar itens no chat da IA:
 //   @pasta/   @sprite   @sprite:acao   @sprite:acao.camada
@@ -141,6 +155,37 @@ async function textoDoCaminho(s, pastaId) {
   return partes.join(' / ');
 }
 
+/* ---------- pendências para a nuvem ---------- */
+
+const CHAVE_PENDENTES = 'nuvem.pendentes'; // { id: marca } — marca muda a cada alteração
+const CHAVE_BASE = 'nuvem.base';           // { id: alterado_em do servidor visto por último }
+let contadorMarca = 0;
+const novaMarca = () => `${agora().toString(36)}.${(++contadorMarca).toString(36)}.${Math.random().toString(36).slice(2, 7)}`;
+
+async function lerMetaEm(s, chave, padrao) {
+  const r = await pedido(s.meta.get(chave));
+  return r ? r.valor : padrao;
+}
+const gravarMetaEm = (s, chave, valor) => pedido(s.meta.put({ chave, valor }));
+
+/** Avisa (depois de um instante) que algo mudou neste aparelho, para a sincronia agendar um envio. */
+function avisarMudancaLocal() {
+  if (typeof globalThis.dispatchEvent !== 'function') return;
+  setTimeout(() => {
+    try { globalThis.dispatchEvent(new Event('miniengine:mudanca-local')); } catch { /* sem eventos */ }
+  }, 0);
+}
+
+/** Marca ids como alterados neste aparelho (precisam ir para a nuvem). Sempre dentro de uma transação. */
+async function marcarPendentes(s, ids) {
+  if (!ids.length) return;
+  const mapa = await lerMetaEm(s, CHAVE_PENDENTES, {});
+  const marca = novaMarca();
+  for (const id of ids) mapa[id] = marca;
+  await gravarMetaEm(s, CHAVE_PENDENTES, mapa);
+  avisarMudancaLocal();
+}
+
 const ordenar = (lista) => lista.sort((a, b) => {
   if ((a.tipo === 'pasta') !== (b.tipo === 'pasta')) return a.tipo === 'pasta' ? -1 : 1;
   return coletor.compare(a.nome, b.nome);
@@ -172,6 +217,7 @@ export function criarItem({ tipo, nome, paiId = RAIZ, dados = null, resumo = nul
     if (resumo) item.resumo = resumo;
     await pedido(s.itens.add(item));
     if (tipo !== 'pasta') await pedido(s.dados.put({ id: item.id, dados }));
+    await marcarPendentes(s, [item.id]);
     return item;
   }).then((item) => {
     lembrarDePedirPersistencia();
@@ -201,15 +247,26 @@ export function salvarDados(id, dados, { resumo, nome } = {}) {
     if (item.tipo === 'pasta') {
       throw new ErroDeArmazenamento('tipo_invalido', 'Pastas não têm dados para salvar.');
     }
+    let mudou = false;
     if (nome !== undefined && nome !== item.nome) {
       const limpo = validarNome(nome);
       await exigirNomeLivre(s, item.paiId, limpo, id);
+      mudou = mudou || limpo !== item.nome;
       item.nome = limpo;
     }
-    if (resumo !== undefined) item.resumo = resumo;
+    if (resumo !== undefined) {
+      mudou = mudou || textoEstavel(resumo) !== textoEstavel(item.resumo);
+      item.resumo = resumo;
+    }
+    if (!mudou) {
+      // Nada diferente? Não regrava (evita reenviar à nuvem frames que não mudaram).
+      const antigo = await pedido(s.dados.get(id));
+      if (antigo && textoEstavel(antigo.dados) === textoEstavel(dados)) return item;
+    }
     item.atualizadoEm = agora();
     await pedido(s.itens.put(item));
     await pedido(s.dados.put({ id, dados }));
+    await marcarPendentes(s, [id]);
     return item;
   });
 }
@@ -282,6 +339,7 @@ export function renomear(id, novoNome) {
     item.nome = limpo;
     item.atualizadoEm = agora();
     await pedido(s.itens.put(item));
+    await marcarPendentes(s, [id]);
     return item;
   });
 }
@@ -309,6 +367,7 @@ export function mover(id, novoPaiId) {
     item.paiId = novoPaiId;
     item.atualizadoEm = agora();
     await pedido(s.itens.put(item));
+    await marcarPendentes(s, [id]);
     return item;
   });
 }
@@ -338,6 +397,7 @@ export function duplicar(id) {
         await pedido(s.dados.put({ id: copia.id, dados: structuredClone(registro ? registro.dados : null) }));
       }
     }
+    await marcarPendentes(s, [...novosIds.values()]);
     return { item: novaRaiz, quantidade: lista.length };
   });
 }
@@ -361,6 +421,7 @@ export function enviarParaLixeira(id) {
       }
       await pedido(s.itens.put(item));
     }
+    await marcarPendentes(s, lista.map((i) => i.id));
     return { lote, quantidade: lista.length, item: lista[0] };
   });
 }
@@ -423,6 +484,7 @@ export function restaurar(lote) {
       }
       await pedido(s.itens.put(item));
     }
+    await marcarPendentes(s, todos.map((i) => i.id));
     return {
       item: raiz,
       destinoId: destino,
@@ -439,6 +501,7 @@ async function apagarLoteDentro(s, itens) {
     await pedido(s.itens.delete(item.id));
     if (item.tipo !== 'pasta') await pedido(s.dados.delete(item.id));
   }
+  await marcarPendentes(s, itens.map((i) => i.id));
   return itens.length;
 }
 
@@ -509,6 +572,7 @@ export function importarArvore({ nomePasta, itens }) {
       paiId: RAIZ, criadoEm: t, atualizadoEm: t,
     };
     await pedido(s.itens.add(raiz));
+    const criados = [raiz.id];
 
     const idNovo = new Map(itens.map((i) => [i.refId, novoId()]));
     const pastasValidas = new Set(itens.filter((i) => i.tipo === 'pasta').map((i) => i.refId));
@@ -542,7 +606,9 @@ export function importarArvore({ nomePasta, itens }) {
       if (i.resumo) registro.resumo = i.resumo;
       await pedido(s.itens.add(registro));
       if (i.tipo !== 'pasta') await pedido(s.dados.put({ id: registro.id, dados: i.dados ?? null }));
+      criados.push(registro.id);
     }
+    await marcarPendentes(s, criados);
     return { pasta: raiz, criados: itens.length, renomeados };
   });
 }
@@ -601,4 +667,189 @@ export async function statusArmazenamento() {
     }
   } catch { /* melhor esforço */ }
   return status;
+}
+
+/* ------------------------------------------------------------------ */
+/* Nuvem: funções usadas SÓ por core/sincronia.js                      */
+/* ------------------------------------------------------------------ */
+
+const CAMPOS_DO_ITEM = ['id', 'tipo', 'nome', 'paiId', 'criadoEm', 'atualizadoEm', 'resumo',
+  'lixeiraLote', 'lixeiraEm', 'lixeiraRaiz', 'paiOriginalId'];
+
+/** Só os campos conhecidos (nada de `qtd` ou lixo vindo de fora). */
+function limparItem(bruto) {
+  const item = {};
+  for (const c of CAMPOS_DO_ITEM) if (bruto[c] !== undefined && bruto[c] !== null) item[c] = bruto[c];
+  return item;
+}
+
+function itemRemotoValido(id, item) {
+  return item && typeof item === 'object' && item.id === id && TIPOS[item.tipo]
+    && typeof item.nome === 'string' && item.nome.trim() && typeof item.paiId === 'string';
+}
+
+/** Quantas alterações deste aparelho ainda não foram para a nuvem. */
+export function nuvemContarPendentes() {
+  return transacao('readonly', async (s) => Object.keys(await lerMetaEm(s, CHAVE_PENDENTES, {})).length);
+}
+
+/**
+ * Próximas alterações a enviar: [{ id, marca, item|null, dados }]. `item` null = apagado de vez.
+ * `limiteBytes` corta o lote (o primeiro sempre entra, mesmo se for grande).
+ */
+export function nuvemLerPendentes({ limite = 50, limiteBytes = 2_000_000 } = {}) {
+  return transacao('readonly', async (s) => {
+    const mapa = await lerMetaEm(s, CHAVE_PENDENTES, {});
+    const lista = [];
+    let bytes = 0;
+    for (const [id, marca] of Object.entries(mapa)) {
+      if (lista.length >= limite) break;
+      const item = await pedido(s.itens.get(id));
+      let dados = null;
+      if (item && item.tipo !== 'pasta') dados = (await pedido(s.dados.get(id)))?.dados ?? null;
+      const tamanho = item ? JSON.stringify(item).length + (dados ? JSON.stringify(dados).length : 0) : 50;
+      if (lista.length && bytes + tamanho > limiteBytes) break;
+      bytes += tamanho;
+      lista.push({ id, marca, item: item ? limparItem(item) : null, dados });
+    }
+    return lista;
+  });
+}
+
+/** Depois de enviar: tira das pendências (se não mudou de novo nesse meio tempo) e guarda a versão do servidor. */
+export function nuvemConfirmarEnvio(enviados) {
+  return transacao('readwrite', async (s) => {
+    const mapa = await lerMetaEm(s, CHAVE_PENDENTES, {});
+    const base = await lerMetaEm(s, CHAVE_BASE, {});
+    for (const { id, marca, alteradoEm, apagado } of enviados) {
+      if (mapa[id] === marca) delete mapa[id];
+      if (apagado) delete base[id];
+      else base[id] = alteradoEm;
+    }
+    await gravarMetaEm(s, CHAVE_PENDENTES, mapa);
+    await gravarMetaEm(s, CHAVE_BASE, base);
+  });
+}
+
+/**
+ * Aplica o que veio da nuvem (linhas `{ id, item, dados, apagado, alterado_em }`).
+ * Conflito (mudou aqui E lá desde a última vez): a versão da nuvem fica no lugar e a deste aparelho
+ * vira uma cópia "nome (conflito)" ao lado — nada se perde.
+ * @returns { aplicados, apagados, conflitos: [nome…], renomeados }
+ */
+export function nuvemAplicarRemotos(linhas) {
+  return transacao('readwrite', async (s) => {
+    const mapa = await lerMetaEm(s, CHAVE_PENDENTES, {});
+    const base = await lerMetaEm(s, CHAVE_BASE, {});
+    const r = { aplicados: 0, apagados: 0, conflitos: [], renomeados: 0 };
+    const novasPendencias = [];
+    const conferirNome = [];
+
+    for (const linha of linhas) {
+      const id = String(linha.id ?? '');
+      if (!id || base[id] === linha.alterado_em) continue; // já visto (ou fui eu que enviei)
+      const local = await pedido(s.itens.get(id));
+      const pendente = id in mapa;
+
+      if (linha.apagado) {
+        if (pendente && local) { base[id] = linha.alterado_em; continue; } // mexi aqui: fica (e volta para a nuvem)
+        if (local) {
+          await pedido(s.itens.delete(id));
+          await pedido(s.dados.delete(id));
+          r.apagados++;
+        }
+        delete mapa[id];
+        delete base[id];
+        continue;
+      }
+
+      if (!itemRemotoValido(id, linha.item)) continue;
+      const remoto = limparItem(linha.item);
+      const dadosRemotos = remoto.tipo === 'pasta' ? null : (linha.dados ?? null);
+
+      if (pendente && local) {
+        const dadosLocais = local.tipo === 'pasta' ? null : ((await pedido(s.dados.get(id)))?.dados ?? null);
+        const iguais = textoEstavel(limparItem(local)) === textoEstavel(remoto)
+          && textoEstavel(dadosLocais) === textoEstavel(dadosRemotos);
+        if (!iguais && local.tipo !== 'pasta' && ativo(local)) {
+          // guarda a versão deste aparelho como cópia
+          const copia = { ...limparItem(local), id: novoId(), atualizadoEm: agora() };
+          copia.nome = await nomeLivre(s, local.paiId, `${local.nome.slice(0, TAMANHO_MAXIMO_NOME - 11)} (conflito)`, id);
+          await pedido(s.itens.put(copia));
+          await pedido(s.dados.put({ id: copia.id, dados: dadosLocais }));
+          novasPendencias.push(copia.id);
+          r.conflitos.push(local.nome);
+        }
+      }
+
+      await pedido(s.itens.put(remoto));
+      if (remoto.tipo !== 'pasta') await pedido(s.dados.put({ id, dados: dadosRemotos }));
+      else await pedido(s.dados.delete(id));
+      delete mapa[id];
+      base[id] = linha.alterado_em;
+      r.aplicados++;
+      if (ativo(remoto)) conferirNome.push(remoto);
+    }
+
+    // Dois itens com o mesmo nome na mesma pasta (criados em aparelhos diferentes): um ganha " (2)".
+    for (const item of conferirNome) {
+      const atual = await pedido(s.itens.get(item.id));
+      if (!ativo(atual)) continue;
+      const chave = chaveDoNome(atual.nome);
+      const irmaos = (await filhosAtivos(s, atual.paiId)).filter((i) => i.id !== atual.id && chaveDoNome(i.nome) === chave);
+      if (!irmaos.length) continue;
+      // renomeia quem tem mudança local esperando; se ninguém tiver, renomeia o que acabou de chegar
+      const alvo = irmaos.find((i) => i.id in mapa) || atual;
+      alvo.nome = await nomeLivre(s, alvo.paiId, alvo.nome, alvo.id);
+      alvo.atualizadoEm = agora();
+      await pedido(s.itens.put(alvo));
+      novasPendencias.push(alvo.id);
+      r.renomeados++;
+    }
+
+    await gravarMetaEm(s, CHAVE_PENDENTES, mapa);
+    await gravarMetaEm(s, CHAVE_BASE, base);
+    if (novasPendencias.length) await marcarPendentes(s, novasPendencias);
+    return r;
+  });
+}
+
+/** Itens cuja pasta-mãe não existe mais (foi apagada em outro aparelho) vão para a raiz. */
+export function nuvemConsertarOrfaos() {
+  return transacao('readwrite', async (s) => {
+    const todos = (await pedido(s.itens.getAll())).filter(ativo);
+    const existe = new Set(todos.map((i) => i.id));
+    const orfaos = [];
+    for (const item of todos) {
+      if (item.paiId === RAIZ || existe.has(item.paiId)) continue;
+      const pai = await pedido(s.itens.get(item.paiId));
+      if (pai) continue; // a mãe está na lixeira: o item vai junto quando ela voltar
+      item.paiId = RAIZ;
+      item.nome = await nomeLivre(s, RAIZ, item.nome, item.id);
+      item.atualizadoEm = agora();
+      await pedido(s.itens.put(item));
+      orfaos.push(item.id);
+    }
+    await marcarPendentes(s, orfaos);
+    return orfaos.length;
+  });
+}
+
+/** Primeira sincronização deste aparelho com uma conta: tudo o que existe aqui vai para a nuvem. */
+export function nuvemPrepararPrimeiraVez() {
+  return transacao('readwrite', async (s) => {
+    const todos = await pedido(s.itens.getAll());
+    await gravarMetaEm(s, CHAVE_PENDENTES, {});
+    await gravarMetaEm(s, CHAVE_BASE, {});
+    await marcarPendentes(s, todos.map((i) => i.id));
+    return todos.length;
+  });
+}
+
+/** Ao sair da conta: esquece o que foi sincronizado (os dados deste aparelho ficam). */
+export function nuvemEsquecer() {
+  return transacao('readwrite', async (s) => {
+    await gravarMetaEm(s, CHAVE_PENDENTES, {});
+    await gravarMetaEm(s, CHAVE_BASE, {});
+  });
 }

@@ -199,5 +199,14 @@ export async function montar(el, { parametro, navegar }) {
     });
   }
 
+  // Chegou algo de outro aparelho: redesenha (ou volta à raiz se esta pasta sumiu).
+  const aoSincronizar = async (e) => {
+    if (!e.detail?.mudou) return;
+    if (pastaId !== RAIZ && (await armazem.caminho(pastaId)) === null) { navegar('/gerenciador', { substituir: true }); return; }
+    tentar(desenhar);
+  };
+  globalThis.addEventListener('miniengine:nuvem', aoSincronizar);
+
   await desenhar();
+  return () => globalThis.removeEventListener('miniengine:nuvem', aoSincronizar);
 }
