@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Etapa atual: 2a de 7 — concluída** (editor de pixel art: desenho, frames, paleta e salvamento nas pastas). A Etapa 1 (tela inicial, armazenamento e gerenciador) continua como estava.
+**Etapa atual: 3 de 7 — concluída** (exportar e importar, imagem de inspiração, variações sem IA e backup em ZIP). As Etapas 1 (tela inicial, armazenamento e gerenciador) e 2a (editor de pixel art) continuam como estavam. Ainda faltam o painel de camadas e a Etapa 2b (ações e propriedades).
 
 ## O que a Etapa 1 entrega
 
@@ -28,7 +28,37 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - **Rascunho automático:** cerca de 1 segundo depois de qualquer alteração o app guarda um rascunho no navegador. Se a aba fechar, o celular reiniciar ou você tocar em voltar, o desenho volta pelo botão *Continuar rascunho*. Rascunho **não** é o mesmo que salvar: só o *Salvar* cria os arquivos nas pastas.
 - **A aba "Chamar IA" ainda é só visual.** Ela mostra como vai funcionar (a IA usa as mesmas ferramentas do editor, entrega o resultado **em um frame novo**, aceita imagem de inspiração e pode partir do zero ou do primeiro frame), mas o chat de verdade chega na Etapa 5.
 
-**Ainda não está nesta parte:** painel de camadas (o formato do arquivo já suporta várias camadas, falta o painel), ações como "andar" e "correr" e propriedades como origem e hitbox (Etapa 2b), exportar PNG/GIF e backup em ZIP (Etapa 3).
+**Ainda não está nesta parte:** painel de camadas (o formato do arquivo já suporta várias camadas, falta o painel) e ações como "andar" e "correr" com propriedades como origem e hitbox (Etapa 2b).
+
+## O que a Etapa 3 entrega (arquivos, inspiração, variações e backup)
+
+- **Imagem de inspiração:** na lateral direita do editor, a aba com ícone de imagem (*Imagem de inspiração*) abre um painel ao lado do desenho. Escolha uma imagem sua (PNG, JPG, WebP ou GIF) e ela fica ali para você olhar e copiar. **O conta-gotas funciona nela**: toque ou clique na imagem para pegar uma cor (se a cor não estiver na paleta, ela é acrescentada). Arraste para mover a imagem; role ou use dois dedos para dar zoom. Ela **acompanha o projeto**: é guardada junto com o primeiro frame salvo e no rascunho, e volta quando você abrir o desenho de novo. **Nunca aparece** nos PNG, GIF, sprite sheet ou frames exportados; só vai no arquivo JSON do projeto, e só se você marcar essa opção.
+- **Exportar** (botão ⬇ no topo do editor → *Exportar*), sempre com prévia e ampliação de 1× a 16×:
+  - **Imagem PNG** do frame atual (`Nome_01.png`);
+  - **Todos os frames** em um ZIP de PNGs;
+  - **Sprite sheet** (PNG, com a opção de um JSON com a posição de cada frame, em ZIP);
+  - **GIF animado** (usa o fps do desenho);
+  - **Camadas separadas** (ZIP com uma pasta por camada; só aparece quando há mais de uma camada);
+  - **Arquivo do projeto (JSON)**, o mesmo formato do sprite, para guardar ou levar a outro aparelho.
+- **Importar** (cartão *Importar* na tela do editor, ou ⬇ → *Importar*):
+  - **JSON** de sprite, com validação: se o arquivo estiver quebrado, a mensagem diz o que e onde; se estiver quase certo (cor repetida, linha curta, nome com símbolo proibido…), o app **corrige sozinho** e mostra a lista do que mudou antes de você aceitar;
+  - **Imagem** (PNG, JPG, WebP, GIF) como **desenho novo**, como **sprite sheet** (você diz o tamanho de cada frame e ela é cortada) ou **só as cores** (entram na paleta do desenho que está aberto; essa opção só aparece quando há um desenho aberto). Imagens com mais de 35 cores são reduzidas, com aviso.
+- **Variações sem IA** (botão ⇄ *Transformar*, quando não há seleção): **Mudar o tom das cores** gira o matiz de toda a paleta de uma vez (o herói vermelho vira verde, azul…), com prévia; **Cobrir de neve** pinta de quase branco o topo do desenho (a neve cai de cima e pousa no primeiro pixel visível de cada coluna; espessura de 1 a 3 pixels; neste frame ou em todos). Espelhar, que já existia, também faz parte das variações. Cada uma é **um passo só** de desfazer.
+- **Backup em ZIP** (rodapé da tela inicial → *Backup*, rota `#/backup`):
+  - **Baixar backup**: um ZIP com pastas, sprites, cenários e jogos, mais cópias legíveis na mesma organização de pastas e um `LEIA-ME.txt`. **A lixeira, o rascunho e as chaves de API não entram.**
+  - **Restaurar**: mostra o que há no arquivo e pergunta; cria uma pasta nova chamada `Restaurado em dd-mm-aaaa HHhMM` com tudo dentro. **Nada do que você tem é apagado ou substituído.**
+  - A tela inicial lembra de fazer backup quando você nunca fez ou quando já faz tempo e há coisas novas (dá para adiar o lembrete).
+- Os codificadores de ZIP, PNG e GIF foram escritos para o projeto (sem biblioteca extra em `vendor/`).
+
+**Pedidos já registrados, para as etapas certas** (ainda **não** implementados, porque dependem de telas que não existem): na Etapa 5 (IA) o comando **"aprimorar"**, a IA **mostrar o resultado primeiro** e entregar **frame por frame** quando o pedido tiver vários frames; na Etapa 4 (cenário) **mover os itens segurando e arrastando**, respeitando a ordem de profundidade 1, 2 e 3. Os detalhes estão em [`docs/CONTEXTO.md`](docs/CONTEXTO.md), e a aba "Chamar IA" já lista isso.
+
+## Como testar a Etapa 3 ("pronto quando")
+
+1. **Imagem de inspiração:** no editor, abra a aba *Imagem de inspiração* (lateral direita), escolha uma foto. Selecione o **conta-gotas** `O` e toque na foto: a cor aparece na paleta. Desenhe com ela. Salve, saia, abra o desenho de novo: a foto continua lá.
+2. **Exportar:** com 2 frames desenhados, toque em ⬇ → *Exportar*. Baixe o PNG, o ZIP de frames, a sprite sheet e o GIF; abra cada um e confira que **a foto de inspiração não aparece** em nenhum.
+3. **Importar:** exporte o *Arquivo do projeto (JSON)*, volte ao Editor → **Importar** e escolha esse arquivo: o desenho volta igual. Tente importar uma imagem como *Só as cores*.
+4. **Variações:** ⇄ → *Mudar o tom das cores*: arraste o controle, veja a prévia e aplique; `Ctrl+Z` desfaz tudo de uma vez. ⇄ → *Cobrir de neve*: escolha a espessura e aplique.
+5. **Backup:** tela inicial → *Backup* → **Baixar backup (ZIP)**. Abra o ZIP no computador: há o `LEIA-ME.txt` e as pastas. Depois use **Restaurar de um backup** com esse mesmo arquivo: surge a pasta `Restaurado em …` e as suas pastas originais continuam intactas.
 
 ## Como testar a Etapa 2a ("pronto quando")
 
@@ -71,7 +101,7 @@ Abra `http://localhost:8000`. No Windows, se o comando `python3` não existir, u
 4. Em 1 a 2 minutos o site fica em `https://SEU-USUARIO.github.io/mini-engine/`.
 5. Depois de enviar uma atualização, se o navegador mostrar a versão antiga, recarregue ignorando o cache (Ctrl+Shift+R no PC; no celular, limpe os dados do site ou abra em aba anônima).
 
-> Os desenhos ficam no navegador de **cada aparelho**. O PC e o celular não compartilham dados até existir a exportação/backup (Etapa 3).
+> Os desenhos ficam no navegador de **cada aparelho**. Para levar tudo do PC ao celular (ou o contrário), baixe um **backup em ZIP** num aparelho e **restaure** no outro (tela inicial → Backup).
 
 ## Como testar a Etapa 1 ("pronto quando")
 
@@ -103,16 +133,25 @@ src/
     tipos.js          tipos de item e constantes
     modelos.js        sprite/cenário em branco
     router.js         rotas por hash (#/gerenciador/ID) e botão voltar
-  ui/                 dom.js, dialogos.js, toast.js, formato.js
-  editor/             o editor de pixel art (etapa 2a), em módulos pequenos
+    zip.js            ler e escrever ZIP (com proteção contra arquivos maliciosos)
+    backup.js         montar e restaurar o backup em ZIP
+  ui/                 dom.js, dialogos.js, toast.js, formato.js, baixar.js
+  editor/             o editor de pixel art (etapas 2a e 3), em módulos pequenos
     documento.js      modelo do desenho, paleta padrão, conversão de/para o JSON do sprite
     controlador.js    todas as ações de edição como funções + desfazer/refazer (sem tela)
     algoritmos.js     linha, elipse, balde, espelhar, girar… (sem tela)
     ferramentas.js    lápis, borracha, balde, linha, retângulo, círculo, conta-gotas, seleção, mover, mão
     vista.js          tela de desenho: zoom, mover, grade, cebola, toque e mouse
     arquivo.js        salvar/abrir os frames nas pastas (nome_01, nome_02…) e rascunho
+    imagem.js         desenho <-> imagem RGBA, sprite sheet, quantização de cores (sem tela)
+    png.js, gif.js    codificadores próprios de PNG e GIF
+    exportar.js       gera cada formato de saída (PNG, frames, sheet, GIF, camadas, JSON)
+    importar.js       lê e corrige JSON de sprite, lê imagens
+    variacoes.js      mudar o tom das cores e neve (sem tela); cores.js: HSV <-> RGB
+    referencia.js     painel da imagem de inspiração
+    dialogos-arquivo.js, dialogos-variacoes.js   janelas de exportar, importar, tom e neve
     painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
-  screens/            inicio, gerenciador, lixeira, diagnostico, editor, em-breve
+  screens/            inicio, gerenciador, lixeira, backup, diagnostico, editor, em-breve
   css/                app.css (tema escuro) e editor.css
 vendor/               phaser.min.js + vendor.json
 docs/                 ARQUITETURA.md e CONTEXTO.md
@@ -125,7 +164,7 @@ docs/                 ARQUITETURA.md e CONTEXTO.md
 
 ## Limites conhecidos
 
-- **O navegador pode apagar os dados do site** se o aparelho ficar sem espaço (principalmente o Safari do iPhone, que limpa sites não usados por semanas). O app pede armazenamento persistente quando você salva o primeiro item, mas o navegador pode recusar. A proteção de verdade será o backup em ZIP da Etapa 3.
+- **O navegador pode apagar os dados do site** se o aparelho ficar sem espaço (principalmente o Safari do iPhone, que limpa sites não usados por semanas). O app pede armazenamento persistente quando você salva o primeiro item, mas o navegador pode recusar. A proteção de verdade é o **backup em ZIP** (tela inicial → Backup): faça um de vez em quando e guarde o arquivo fora do navegador.
 - Uma aba anônima não guarda nada depois de fechada.
 
 ## Próximas etapas
@@ -134,7 +173,7 @@ docs/                 ARQUITETURA.md e CONTEXTO.md
 |---|-------|
 | 1 | Tela inicial, armazenamento e gerenciador de pastas ✔ |
 | 2 | Editor de pixel art — **2a: desenho, frames, paleta, salvar ✔** · camadas (painel) · 2b: ações e propriedades |
-| 3 | Importar/exportar e backup em ZIP |
+| 3 | Importar/exportar, imagem de inspiração, variações e backup em ZIP ✔ |
 | 4 | Construção de cenário |
 | 5 | Módulo de chat com IA e "Solicitar IA" nos sprites |
 | 6 | Criar jogo (chat, teste ao vivo, correção automática) |
