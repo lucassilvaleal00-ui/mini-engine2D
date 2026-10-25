@@ -1,0 +1,48 @@
+# Arquitetura do Mini Engine
+
+## Princípios
+
+1. **Sem build, sem frameworks.** JavaScript em módulos ES, carregado direto pelo navegador.
+2. **Módulos independentes.** Cada tela é um arquivo que só conhece `core/` e `ui/`. Se uma etapa futura quebrar, as anteriores continuam funcionando.
+3. **Telas nunca falam com o IndexedDB.** Só usam `core/storage.js`. Assim, uma sincronização opcional (GitHub, nuvem) pode ser acrescentada depois como outro módulo com a mesma interface, sem mexer nas telas.
+4. **Tudo que o editor faz é uma função.** (Decisão para a Etapa 2.) Botões e IA chamam as mesmas funções (`criarCamada`, `preencherArea`, `espelhar`…). Sem isso, a "Solicitar IA" exigiria reescrever o editor.
+5. **Texto vindo do usuário nunca vira HTML.** `ui/dom.js` só cria nós de texto.
+
+## Mapa dos módulos
+
+```
+main.js ──► core/router.js ──► screens/*.js ──► core/storage.js ──► core/db.js ──► IndexedDB
+                                    │
+                                    └──► ui/dom.js · ui/dialogos.js · ui/toast.js · ui/formato.js
+```
+
+- **router.js**: rotas por hash. Cada tela exporta `montar(el, { parametro, navegar, voltar })` e pode devolver uma função de limpeza. `voltar()` volta à tela de onde o usuário veio e, se não houver (link aberto direto), cai num destino seguro sem sair do site.
+- **dialogos.js**: `confirmar`, `pedirTexto`, `escolherPasta`, `menuAcoes`, sobre o `<dialog>` nativo. O padrão `processar` faz a operação dentro do diálogo, que continua aberto mostrando erros como "nome já existe".
+
+## Modelo de dados
+
+Banco `mini-engine`, versão 1, três stores:
+
+| Store | Conteúdo |
+|-------|----------|
+| `itens` | Metadados leves: `{ id, tipo, nome, paiId, criadoEm, atualizadoEm, resumo?, lixeira* }` |
+| `dados` | O conteúdo pesado de cada item: `{ id, dados }` (só sprite, cenário e jogo) |
+| `meta` | Configurações internas (chave/valor) |
+
+**Por que separar `itens` de `dados`?** Abrir uma pasta lê só os metadados. Um personagem com 10 ações pode ter centenas de KB; ler isso de 50 personagens a cada abertura de pasta travaria o celular.
+
+- `tipo`: `pasta`, `sprite`, `cenario` ou `jogo`.
+- `paiId`: id da pasta-mãe, ou `"raiz"` (o IndexedDB não aceita `null` como chave de índice).
+- `resumo`: objeto pequeno mostrado nas listas, ex.: `{ descricao: "3 camadas · 4 quadros" }`. Quem salva o item é quem preenche.
+- **Nomes** únicos por pasta, sem diferenciar maiúsculas, até 60 caracteres, sem `/ \ : @ .` (reservados para a sintaxe `@` da IA). Nomes não são únicos no projeto todo: quando houver ambiguidade, a lista do `@` mostrará o caminho completo.
+- **Lixeira:** excluir cria um *lote*. Todos os itens do lote recebem `lixeiraLote` e `lixeiraEm`; só o item excluído diretamente recebe `lixeiraRaiz` e `paiOriginalId`. Itens que já estavam em outra lixeira não entram no novo lote. Restaurar volta à pasta original; se ela sumiu, vai para a raiz; se o nome já estiver em uso, ganha ` (2)`.
+- Todas as operações são **transações atômicas**: se algo falha no meio (nome inválido, destino inexistente), nada é gravado.
+- Pastas não podem ser movidas para dentro de si mesmas nem de suas filhas.
+
+## Como as próximas etapas se encaixam
+
+- **Editor (Etapa 2):** abre `#/editor/<id>`, lê com `obterComDados(id)` e salva com `salvarDados(id, dados, { resumo })`. Ao salvar um sprite novo, pergunta a pasta (reusando `escolherPasta`). O JSON do sprite ganhará `acoes`, `origem` e `hitbox` (proposta em `CONTEXTO.md`). O campo `name` dentro do JSON deve ser sincronizado com o nome do item ao salvar e exportar.
+- **Cenário (Etapa 4):** guarda **referências** (id do sprite + posição + camada de profundidade 1/2/3 + sólido/decoração), não cópias. O formato em `core/modelos.js` é provisório.
+- **IA (Etapas 5 e 6):** um módulo de chat único (provedores, chave, anexos, chamada de ferramentas) usado pelo "Solicitar IA" do sprite e pelo "Criar jogo". As chaves ficam só no `localStorage`. No "Criar jogo" a IA recebe apenas ferramentas de leitura dos sprites e cenários.
+- **Jogo de teste:** `<iframe sandbox>` **sem** `allow-same-origin`, para que o código gerado pela IA não consiga ler o `localStorage` (onde ficam as chaves). Phaser, sprites e `assets.json` entram no iframe montados em memória.
+- **Backup:** ZIP do projeto inteiro na Etapa 3, porque o navegador pode apagar o IndexedDB e a persistência não é garantida.
