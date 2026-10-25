@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Situação:** prontos a Etapa 1 (início, armazenamento, gerenciador), a 2a (editor de pixel art), a 3 (arquivos, imagem de inspiração, variações, backup), a sincronização PC ↔ celular (Supabase) e o **Criar jogo** com o módulo de IA (etapas 5 e 6, feitas antes da 4 a seu pedido). Últimos ajustes: o botão "Adicionar imagem de inspiração" voltou a abrir a janela de arquivos, e o cursor vira um balde ou um conta-gotas ao usar essas ferramentas. **Próxima:** Etapa 4 (Construtor de cenário). Ainda faltam também o painel de camadas, a Etapa 2b (ações e propriedades) e o "Solicitar IA" nos sprites.
+**Situação:** prontos a Etapa 1 (início, armazenamento, gerenciador), a 2a (editor de pixel art), a 3 (arquivos, imagem de inspiração, variações, backup), a sincronização PC ↔ celular (Supabase) e o **Criar jogo** com o módulo de IA (etapas 5 e 6, feitas antes da 4 a seu pedido). Últimos ajustes: o "←" do Criar jogo agora vai do projeto para a lista e da lista para o início (antes ficava indo e voltando entre os dois); o "Chamar IA" do editor ganhou o botão Modelo IA; as imagens anexadas no chat ficam guardadas só como miniatura (o projeto não pesa na nuvem); o botão "Adicionar imagem de inspiração" voltou a abrir a janela de arquivos, e o cursor vira um balde ou um conta-gotas ao usar essas ferramentas. **Próxima:** Etapa 4 (Construtor de cenário). Ainda faltam também o painel de camadas, a Etapa 2b (ações e propriedades) e o "Solicitar IA" nos sprites.
 
 ## O que a Etapa 1 entrega
 
@@ -67,7 +67,7 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
   - `@[nome com espaço]` serve para nomes com espaço.
 
   Ao digitar `@` aparece a lista para escolher. O app transforma cada desenho num sprite sheet, e a IA usa só os nomes que existem. Se você editar o sprite no editor, o jogo muda na próxima vez que rodar.
-- **Modelo IA:** Gemini (Google) ou OpenRouter. A lista de modelos vem do próprio provedor. A **chave fica só neste aparelho**: não vai para a nuvem, nem para o backup, nem para o jogo. No outro aparelho, cole de novo.
+- **Modelo IA:** Gemini (Google) ou OpenRouter. O mesmo botão aparece na aba **Chamar IA** do editor; a escolha vale para os dois. A lista de modelos vem do próprio provedor. A **chave fica só neste aparelho**: não vai para a nuvem, nem para o backup, nem para o jogo. No outro aparelho, cole de novo.
 - **A IA programa com Phaser 3.90**:
   - a resposta mostra o que ela fez e quais arquivos mudou (✎ main.js…);
   - o que falta você fazer aparece como 📌 (por exemplo, "desenhar uma moeda");
