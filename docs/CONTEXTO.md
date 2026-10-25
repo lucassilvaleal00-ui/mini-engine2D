@@ -15,7 +15,7 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Phaser **3.90.0** local em `/vendor/phaser.min.js` (versão registrada em `vendor/vendor.json` e no README). Nunca carregar bibliotecas de links externos. Outras bibliotecas (ex.: JSZip, codificador de GIF) são permitidas **se também ficarem locais em `/vendor`**, com versão anotada.
 - Interface em português do Brasil, escura, funcional em celular (toque) e PC (mouse).
 - Estrutura: `/src` (módulos: `core/`, `ui/`, `screens/`, `css/`), `/vendor`, `/docs`. Código comentado em português.
-- Dados do usuário no IndexedDB. Nada de backend. Telas só falam com `core/storage.js`.
+- Dados do usuário no IndexedDB, sincronizados com o Supabase (sem servidor próprio). Telas só falam com `core/storage.js`.
 - Chaves de API só no localStorage; nunca no código nem enviadas a terceiros, exceto ao provedor escolhido.
 - O jogo de teste roda em `<iframe sandbox>` **sem** `allow-same-origin`.
 - Cada módulo é independente: se uma etapa futura falhar, as anteriores continuam funcionando.
@@ -44,6 +44,23 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - **Backup** (tela `#/backup`, rodapé da tela inicial): ZIP com tudo (pastas, sprites, cenários, jogos), `backup.json` + cópias legíveis na mesma árvore de pastas. **Não leva** lixeira, rascunho nem chaves de API. Restaurar cria uma pasta nova "Restaurado em dd-mm-aaaa HHhMM" e **nunca sobrescreve** nada. Lembrete na tela inicial quando faz tempo ou há muita coisa nova.
 - **Variações sem IA** (menu ⇄ Transformar): *Mudar o tom das cores* (gira o matiz de toda a paleta, com prévia) e *Cobrir de neve* (a neve cai de cima e pousa no primeiro pixel visível de cada coluna; espessura 1 a 3; este frame ou todos; cor quase branca da paleta ou nova). Espelhar já existia. Cada uma é **um passo** de desfazer. Mesmas funções serão chamadas pela IA: `ctl.deslocarMatiz(graus)` e `ctl.aplicarNeve({ espessura, escopo })`.
 - Os codificadores de ZIP, PNG e GIF são próprios (sem biblioteca em `/vendor`).
+
+## Nuvem (já implementado, depois da Etapa 3)
+
+- Sincronização PC ↔ celular com o **Supabase** (projeto `svtvaahkldhjslvvqiir`), sem biblioteca: `core/nuvem.js` (login por e-mail e senha, REST) e `core/sincronia.js` (automática). O IndexedDB continua sendo o banco local; o Supabase mantém os aparelhos iguais. Tela `#/nuvem`.
+- Tabela `itens` em `docs/supabase.sql` (uma linha por item, RLS por conta). Conflito vira cópia `nome (conflito)`. Chaves de API e rascunho nunca sobem.
+- **Para as próximas etapas:** cenários e jogos salvos pelo `storage.js` já sincronizam sozinhos. Não falar com o IndexedDB por fora do `storage.js`, senão a alteração não sobe.
+
+## Criar jogo (já implementado; feito antes da Etapa 4 a pedido do usuário)
+
+- Rotas `#/jogo` (lista + "＋ Adicionar novo projeto": nome + imagem obrigatórios) e `#/jogo/<id>`. Layout do desenho do usuário: chat à esquerda (lista, "Dicas de comandos", caixa "Escreva aqui…" com 📎, "Modelo IA" e "＋ Nova conversa"); área de teste à direita (ao vivo, PAUSADA enquanto a IA trabalha, BLOQUEADA sem jogo), console e "</> Código". Celular: abas Chat | Jogo | Código.
+- Projeto = item `jogo` (dados em `src/jogo/projeto.js`: arquivos, memoria, pendencias, referencias, conversas, versoes). Entra no backup e na nuvem.
+- IA: `core/ia.js` (Gemini com chave no cabeçalho `x-goog-api-key`; OpenRouter formato OpenAI). Chaves só no localStorage (`miniengine.ia.chave.<provedor>`). Lista de modelos vem do provedor.
+- Protocolo da resposta: explicação + `===ARQUIVO: nome===…===FIM===` (arquivo inteiro), `===APAGAR: nome===`, `===MEMORIA===`, `===PENDENCIAS===`. Regras em `src/jogo/conversa.js` (REGRAS).
+- Conversas ligadas: cada pedido leva a memória do projeto, os arquivos atuais, os assets e os títulos das outras conversas; só as últimas 16 mensagens da conversa atual.
+- `@`: `@desenho`, `@pasta/`, `@desenho.camada`, `@cenário`, `@[nome com espaço]`; `@desenho:ação` aceita, mas usa o desenho inteiro até existirem ações (2b). Desenho = cadeia `base_NN`; vira spritesheet `key` + animação pronta. No jogo: `carregarAssets(this)` no preload e `criarAnimacoes(this)` no create; `ASSETS`, `CENARIOS`, `DADOS`.
+- Jogo em `<iframe sandbox="allow-scripts">` (srcdoc); cada .js vira um blob (erros com arquivo e linha); pausar/continuar por postMessage; correção automática até 3 vezes; versões com "Desfazer esta mudança".
+- **Ainda falta da Etapa 5:** o "Solicitar IA" nos sprites (com o comando `aprimorar`, mostrar o resultado antes e entregar frame por frame), que vai reaproveitar o `core/ia.js`.
 
 ## Pedidos do usuário para as próximas etapas (registrados na Etapa 3, ainda NÃO implementados)
 
@@ -102,6 +119,6 @@ O app monta o `assets.json` sozinho a partir dos sprites e cenários que eu cite
 2. Editor de pixel art: ✔ 2a feita (ver seção Editor); falta (b). Plano original: (a) desenho, camadas, quadros, onion skin, animação, salvamento nas pastas; (b) painel de ações e propriedades (origem, hitbox, flipX). Pronto quando: desenho um cavalo em camadas, crio 4 quadros, vejo animar, fecho o navegador e reabro com tudo salvo.
 3. ✔ Importar/exportar JSON, PNG, sprite sheet, GIF, camadas separadas, importar PNG para a paleta (aviso acima de 36 cores), ZIP de backup, variações sem IA (trocar cor, espelhar, "neve"), validação de JSON com mensagem clara e correção automática. Mais a imagem de inspiração (ver seção Editor).
 4. Construção de cenário (referências, 3 camadas de profundidade, sólido/decoração, salvo nas pastas).
-5. Módulo de chat com IA (provedores configuráveis: Gemini primeiro, depois um compatível com OpenAI como OpenRouter; chamada de ferramentas; CORS tratado) e **"Solicitar IA"** nos sprites, devolvendo cópia no editor.
-6. Criar jogo: chat, `@`, iframe de teste, console de erros, correção automática (até 3 tentativas), histórico de versões com desfazer, lista de pendências.
+5. ✔ Módulo de chat com IA (Gemini e OpenRouter) — falta o **"Solicitar IA"** nos sprites, devolvendo cópia no editor.
+6. ✔ Criar jogo: projetos com imagem, chat, `@`, iframe de teste, console de erros, correção automática (até 3 tentativas), versões com desfazer, pendências, conversas ligadas. (Feito antes da Etapa 4.)
 7. Entrega: ZIP do jogo, PWA instalável (ou Capacitor, que exige PC com Node e Android Studio), sincronização opcional com GitHub por token restrito a um repositório, README final.

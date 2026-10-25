@@ -4,7 +4,7 @@
 
 1. **Sem build, sem frameworks.** JavaScript em módulos ES, carregado direto pelo navegador.
 2. **Módulos independentes.** Cada tela é um arquivo que só conhece `core/` e `ui/`. Se uma etapa futura quebrar, as anteriores continuam funcionando.
-3. **Telas nunca falam com o IndexedDB.** Só usam `core/storage.js`. Assim, uma sincronização opcional (GitHub, nuvem) pode ser acrescentada depois como outro módulo com a mesma interface, sem mexer nas telas.
+3. **Telas nunca falam com o IndexedDB.** Só usam `core/storage.js`. Foi isso que permitiu acrescentar a sincronização com o Supabase (abaixo) sem mexer nas telas.
 4. **Tudo que o editor faz é uma função.** (Decisão para a Etapa 2.) Botões e IA chamam as mesmas funções (`criarCamada`, `preencherArea`, `espelhar`…). Sem isso, a "Solicitar IA" exigiria reescrever o editor.
 5. **Texto vindo do usuário nunca vira HTML.** `ui/dom.js` só cria nós de texto.
 
@@ -54,6 +54,38 @@ screens/backup.js ──► core/backup.js ──► core/zip.js · core/storage
 - **Imagem de inspiração** fica em `ctl.referencia`, **fora do `estado`**: não entra no desfazer (desfazer um traço não pode fazer a imagem sumir) nem nos exportadores de imagem. Vai no campo `reference` do JSON do primeiro frame da cadeia e no rascunho.
 - **Backup:** ZIP com `backup.json` (manifesto: app, formato, itens com id/tipo/nome/pai/arquivo/datas/resumo) + os dados de cada item + cópias legíveis na mesma árvore de pastas + `LEIA-ME.txt`. Fica de fora a lixeira, o rascunho e as chaves de API (que só existem no `localStorage`). **Restaurar** lê e valida tudo antes de gravar, cria uma pasta nova na raiz (`Restaurado em dd-mm-aaaa HHhMM`), gera **ids novos** e grava numa única transação (`importarArvore`): ou entra tudo ou nada, e nada existente é sobrescrito. Itens defeituosos viram avisos, não travam o resto.
 - **Variações:** `variacoes.js` só calcula (recebe o desenho, devolve a paleta e os quadros novos); o `Controlador` aplica em uma transação. A neve olha o desenho com as camadas **visíveis** juntas e pinta na camada que o usuário enxerga naquele pixel.
+
+## Sincronização na nuvem (Supabase)
+
+```
+screens/nuvem.js ──► core/sincronia.js ──► core/nuvem.js ──► fetch → Supabase (Auth + PostgREST)
+                              └──────────► core/storage.js (funções nuvem*) ──► IndexedDB
+```
+
+- **O IndexedDB continua sendo o banco do app.** As telas não mudaram: continuam falando só com `storage.js`. O Supabase é uma cópia remota que mantém os aparelhos iguais; sem internet tudo funciona e as alterações esperam.
+- **Sem biblioteca:** `nuvem.js` usa os endpoints REST do Supabase (`/auth/v1/token`, `/auth/v1/signup`, `/rest/v1/itens`). Sessão no `localStorage` (`miniengine.nuvem.sessao`), renovada sozinha antes de vencer e de novo em caso de 401.
+- **Tabela `itens`** (ver `docs/supabase.sql`): uma linha por item `(user_id, id)`, com `item` (os metadados, inclusive lixeira), `dados` (o JSON pesado), `apagado` (exclusão definitiva) e `alterado_em` (posto pelo servidor a cada gravação). RLS: cada conta só lê e grava as próprias linhas.
+- **Pendências:** toda escrita do `storage.js` marca os ids em `meta['nuvem.pendentes']` **na mesma transação**, e dispara o evento `miniengine:mudanca-local`. `salvarDados` não regrava (nem marca) quando o conteúdo é idêntico, para não reenviar frames que não mudaram.
+- **Ciclo** (`sincronia.js`): (1) consulta leve `id, alterado_em` desde a última marca, menos 10 s de folga; baixa por inteiro só o que difere de `meta['nuvem.base']` (a versão do servidor vista por último) e aplica com `nuvemAplicarRemotos`; (2) itens sem pasta vão para a raiz; (3) envia as pendências em lotes (upsert `on_conflict=user_id,id`) e guarda a `alterado_em` devolvida.
+- **Conflito:** item pendente aqui que também mudou na nuvem → a versão da nuvem entra no lugar e a local vira uma cópia `nome (conflito)` (pastas: vence a nuvem). Nomes repetidos na mesma pasta (criados em aparelhos diferentes) → um ganha ` (2)`. Exclusão vinda de fora não apaga um item que tem alteração local esperando.
+- **Primeira vez de uma conta num aparelho** (`meta['nuvem.conta']` diferente): tudo o que existe aqui vira pendente e é enviado; o que está na nuvem é baixado. Sair esquece só o estado de sincronização; os itens ficam.
+- **Telas:** a sincronia emite `miniengine:nuvem`; Gerenciador e Lixeira redesenham quando `detail.mudou`; a tela inicial mostra a situação no rodapé; `main.js` avisa conflitos.
+
+## Criar jogo e módulo de IA
+
+```
+screens/jogo.js ──► jogo/projeto.js ──► core/storage.js   (o projeto é um item `jogo`)
+       │        ──► jogo/mencoes.js · jogo/assets.js ──► editor/arquivo.js · imagem.js · png.js
+       │        ──► jogo/conversa.js ──► core/ia.js ──► fetch → Gemini | OpenRouter
+       └──────► jogo/palco.js ──► <iframe sandbox="allow-scripts" srcdoc> ──postMessage──► console/erros
+```
+
+- **A memória é do projeto, não da IA.** A cada pedido o app monta o contexto: regras fixas (Phaser 3.90, formato da resposta), memória do projeto, títulos das outras conversas, pendências, assets e TODOS os arquivos atuais, mais as últimas 16 mensagens da conversa atual (respostas antigas sem os blocos de código). Por isso "＋ Nova conversa" começa limpa sem esquecer o jogo.
+- **Resposta → arquivos:** `lerResposta` aceita só nomes simples (`[A-Za-z0-9_-].js|json|md`); caminhos com pasta perdem a pasta; nomes perigosos são ignorados. Cada mudança guarda antes uma versão (até 25) para "Desfazer esta mudança".
+- **Assets:** cada `@desenho` vira um sprite sheet PNG gerado na hora a partir do desenho salvo (com cache pela data). A IA recebe só a descrição (chave, tamanho do frame, nº de frames, fps); as imagens vão direto para o jogo.
+- **Isolamento:** o jogo roda num iframe `sandbox="allow-scripts"` sem `allow-same-origin` (origem opaca): não lê localStorage, IndexedDB nem cookies do app. O Phaser vem do arquivo local `vendor/phaser.min.js` (URL absoluta). Cada .js do jogo vira um blob, para os erros chegarem com o nome do arquivo e a linha. `Phaser.Game` é embrulhado para o app conseguir pausar (`loop.sleep`) e continuar.
+- **Correção automática:** depois de aplicar uma resposta, o app roda o jogo e espera ~3,5 s; se houver erro, manda o erro à IA (até 3 vezes seguidas).
+- **IA:** `core/ia.js` é único e servirá também ao "Solicitar IA" dos sprites. Gemini (`generateContent`, `systemInstruction`, imagens `inlineData`, ignora partes de "pensamento") e OpenRouter (`chat/completions`, imagens `image_url`). Erros traduzidos (chave inválida, sem crédito, limite, modelo inexistente, sem internet).
 
 ## Modelo de dados
 
