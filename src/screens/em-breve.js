@@ -36,19 +36,6 @@ export function criarTelaEmBreve({ titulo, icone, etapa, descricao, recursos }) 
   };
 }
 
-export const editor = criarTelaEmBreve({
-  titulo: 'Editor de pixel art',
-  icone: '🎨',
-  etapa: 'etapa 2',
-  descricao: 'O editor completo vem na próxima etapa.',
-  recursos: [
-    'Lápis, borracha, balde, conta-gotas, linha, retângulo, seleção',
-    'Camadas, quadros, onion skin e animação',
-    'Painel de ações (andar, correr, agachar…) com direções',
-    'Salvar direto nas pastas do gerenciador',
-  ],
-});
-
 export const cenario = criarTelaEmBreve({
   titulo: 'Construção de cenário',
   icone: '🗺️',

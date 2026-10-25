@@ -54,6 +54,13 @@ function executar(construir) {
   });
 }
 
+/**
+ * Abre um diálogo próprio: `construir({ fechar })` devolve o conteúdo e `fechar(valor)`
+ * encerra devolvendo o valor (null = cancelado). Use para telas que os diálogos prontos
+ * abaixo não cobrem (seletor de cor, salvar…). Elementos com `data-foco` recebem o foco.
+ */
+export const abrirDialogo = executar;
+
 /** Pergunta sim/não. Devolve true ou false. O foco começa em "Cancelar". */
 export function confirmar({ titulo, mensagem, rotuloConfirmar = 'Confirmar', perigo = false }) {
   return executar(({ fechar }) => [

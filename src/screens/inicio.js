@@ -7,7 +7,7 @@ import { estatisticas } from '../core/storage.js';
 
 const CARTOES = [
   {
-    rota: '/editor', icone: '🎨', titulo: 'Editor de pixel art', pronto: false,
+    rota: '/editor', icone: '🎨', titulo: 'Editor de pixel art', pronto: true,
     texto: 'Desenhe sprites com camadas, quadros e animações.',
   },
   {
@@ -58,6 +58,6 @@ export async function montar(el, { navegar }) {
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/lixeira') },
         lixeira ? `🗑️ Lixeira (${lixeira})` : '🗑️ Lixeira'),
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/diagnostico') }, '🔧 Diagnóstico'),
-      h('span', {}, 'Etapa 1 · base e gerenciador')),
+      h('span', {}, 'Etapa 2a · editor')),
   ]);
 }

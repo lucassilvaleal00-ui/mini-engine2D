@@ -39,16 +39,18 @@ export function aviso(texto, { tipo = 'info', acao = null, duracao } = {}) {
 }
 
 /** Mostra um erro de forma amigável (mensagens do armazenamento já são em português). */
+const ERROS_COM_MENSAGEM = ['ErroDeArmazenamento', 'ErroDoEditor'];
+
 export function avisarErro(erro) {
-  if (erro?.name !== 'ErroDeArmazenamento') console.error(erro);
-  const texto = erro?.name === 'ErroDeArmazenamento'
-    ? erro.message
-    : `Algo deu errado: ${erro?.message || erro}`;
+  const amigavel = ERROS_COM_MENSAGEM.includes(erro?.name);
+  if (!amigavel) console.error(erro);
+  const texto = amigavel ? erro.message : `Algo deu errado: ${erro?.message || erro}`;
   aviso(texto, { tipo: 'erro', duracao: 6000 });
 }
 
 /** Texto de erro para mostrar dentro de um diálogo. */
 export function mensagemDeErro(erro) {
-  if (erro?.name !== 'ErroDeArmazenamento') console.error(erro);
-  return erro?.name === 'ErroDeArmazenamento' ? erro.message : `Algo deu errado: ${erro?.message || erro}`;
+  const amigavel = ERROS_COM_MENSAGEM.includes(erro?.name);
+  if (!amigavel) console.error(erro);
+  return amigavel ? erro.message : `Algo deu errado: ${erro?.message || erro}`;
 }

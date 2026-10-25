@@ -11,7 +11,8 @@ import * as inicio from './screens/inicio.js';
 import * as gerenciador from './screens/gerenciador.js';
 import * as lixeira from './screens/lixeira.js';
 import * as diagnostico from './screens/diagnostico.js';
-import { editor, cenario, jogo } from './screens/em-breve.js';
+import * as editor from './screens/editor.js';
+import { cenario, jogo } from './screens/em-breve.js';
 
 // Mostra erros inesperados na tela (no celular ninguém vê o console).
 window.addEventListener('unhandledrejection', (e) => {
