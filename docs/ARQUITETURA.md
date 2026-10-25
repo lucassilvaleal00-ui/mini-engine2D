@@ -17,7 +17,26 @@ main.js ──► core/router.js ──► screens/*.js ──► core/storage.j
 ```
 
 - **router.js**: rotas por hash. Cada tela exporta `montar(el, { parametro, navegar, voltar })` e pode devolver uma função de limpeza. `voltar()` volta à tela de onde o usuário veio e, se não houver (link aberto direto), cai num destino seguro sem sair do site.
-- **dialogos.js**: `confirmar`, `pedirTexto`, `escolherPasta`, `menuAcoes`, sobre o `<dialog>` nativo. O padrão `processar` faz a operação dentro do diálogo, que continua aberto mostrando erros como "nome já existe".
+- **dialogos.js**: `confirmar`, `pedirTexto`, `escolherPasta`, `menuAcoes` e o genérico `abrirDialogo`, sobre o `<dialog>` nativo. O padrão `processar` faz a operação dentro do diálogo, que continua aberto mostrando erros como "nome já existe".
+
+## O editor (Etapa 2a)
+
+```
+screens/editor.js ──► editor/controlador.js ──► editor/documento.js · editor/algoritmos.js
+        │                     ▲
+        ├──► editor/vista.js ─┘ (ferramentas.js chama o controlador)
+        ├──► painel-quadros · painel-paleta · painel-ia · barra-ferramentas · dialogos-editor
+        └──► editor/arquivo.js ──► core/storage.js
+```
+
+- **Controlador sem tela.** `Controlador` guarda o estado do desenho e expõe cada edição como método (`adicionarQuadro`, `inserirQuadroComPixels`, `espelhar`, `girar`, `adicionarCor`, `alterarCor`, `removerCor`…). Botões e atalhos chamam esses métodos, e a IA (Etapa 5) chamará os mesmos. Ele emite `mudou` e `sujo`; as telas só reagem.
+- **Desfazer por compartilhamento.** Buffers de pixels nunca são alterados no lugar (copia-ao-escrever); o histórico guarda fotografias que compartilham os buffers que não mudaram. Limite de 50 passos. Um traço inteiro (do toque ao soltar) é um passo só.
+- **Estado do desenho:** `{ nome, largura, altura, fps, paleta, camadas, quadros, atual, camadaAtiva }`. Cada quadro tem um `Uint8Array` por camada, com **índices da paleta** (o índice 0 é transparente), exatamente como o arquivo. Isso torna "editar uma cor muda todos os pixels" uma troca de uma entrada da paleta.
+- **Um frame = um item sprite.** O JSON salvo é o mesmo da Etapa 1 (`{ version, name, size, palette, layers, fps }`), com **um quadro por arquivo**. Os frames de um desenho se chamam `base_01`, `base_02`… (`base_001` a partir de 100). Uma *cadeia* é o conjunto de itens da mesma pasta com a mesma base e o mesmo tamanho; abrir um deles carrega a cadeia toda e junta as paletas por cor (`#hex`). `arquivo.js` é o único lugar que conhece essa convenção.
+- **Salvar** (`analisarSalvamento` e `salvarDesenho`): arquivos de **outro** desenho com o mesmo nome exigem confirmação; os frames do próprio desenho são reaproveitados (mesmos ids); frames que sobram vão para a lixeira. Tudo em uma transação lógica por item, com nomes validados antes de gravar.
+- **Rascunho:** chave `editor.rascunho` na store `meta`, gravada cerca de 1 s depois de cada alteração e ao sair da tela. Apagada ao salvar.
+- **Vista:** um `<canvas>` por tela com zoom inteiro (pixels nítidos), grade a partir de 6×, cebola, seleção e contorno do pixel sob o ponteiro. Usa `pointer events` (mouse, toque, caneta) com `touch-action: none`; dois dedos fazem pinça e mover.
+- **Gavetas:** Cores (esquerda) e Chamar IA (direita) são `<aside>` com uma aba sempre visível. Abaixo de 900 px cobrem o desenho; acima, empurram.
 
 ## Modelo de dados
 
@@ -41,7 +60,7 @@ Banco `mini-engine`, versão 1, três stores:
 
 ## Como as próximas etapas se encaixam
 
-- **Editor (Etapa 2):** abre `#/editor/<id>`, lê com `obterComDados(id)` e salva com `salvarDados(id, dados, { resumo })`. Ao salvar um sprite novo, pergunta a pasta (reusando `escolherPasta`). O JSON do sprite ganhará `acoes`, `origem` e `hitbox` (proposta em `CONTEXTO.md`). O campo `name` dentro do JSON deve ser sincronizado com o nome do item ao salvar e exportar.
+- **Editor (Etapa 2):** 2a pronta (ver acima). Abre `#/editor` (pergunta criar/abrir) ou `#/editor/<id>` (abre a cadeia daquele frame). Na 2b, as **ações** (andar, correr…) serão uma convenção de nomes sobre grupos de arquivos (`personagem_acao_direcao_NN`) mais propriedades (origem, hitbox, flipX), em vez de um objeto dentro de um único sprite; isso mantém um frame por arquivo, como pedido. O campo `name` dentro do JSON é sincronizado com o nome do item ao salvar.
 - **Cenário (Etapa 4):** guarda **referências** (id do sprite + posição + camada de profundidade 1/2/3 + sólido/decoração), não cópias. O formato em `core/modelos.js` é provisório.
 - **IA (Etapas 5 e 6):** um módulo de chat único (provedores, chave, anexos, chamada de ferramentas) usado pelo "Solicitar IA" do sprite e pelo "Criar jogo". As chaves ficam só no `localStorage`. No "Criar jogo" a IA recebe apenas ferramentas de leitura dos sprites e cenários.
 - **Jogo de teste:** `<iframe sandbox>` **sem** `allow-same-origin`, para que o código gerado pela IA não consiga ler o `localStorage` (onde ficam as chaves). Phaser, sprites e `assets.json` entram no iframe montados em memória.

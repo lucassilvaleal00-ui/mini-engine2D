@@ -28,6 +28,14 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Nomes únicos por pasta; proibidos `/ \ : @ .`; máximo 60 caracteres.
 - Excluir manda para a lixeira (lote) com "Desfazer"; restaurar volta à pasta original ou à raiz.
 
+## Editor (já implementado na Etapa 2a)
+
+- Rotas: `#/editor` (criar, abrir ou continuar rascunho) e `#/editor/<idItem>`. Layout: frames no topo, aba Cores à esquerda, tela no centro, aba Chamar IA à direita, ferramentas embaixo.
+- **Cada frame é um item sprite separado**, nomeado `base_01`, `base_02`… O editor junta a cadeia ao abrir. Salvar com nome já existente de outro desenho mostra aviso e pede confirmação.
+- Código em `src/editor/`: `Controlador` (todas as edições são métodos, sem tela; a IA da Etapa 5 chama os mesmos, em especial `inserirQuadroComPixels` para entregar o resultado em um frame novo), `documento.js` (estado e conversão para o JSON do sprite), `arquivo.js` (convenção `_NN`), `vista.js`, `ferramentas.js`.
+- Tamanho do desenho: 4 a 128. Paleta: até 36 itens (transparente + 35 cores).
+- Fora do 2a: painel de camadas, ações/propriedades (2b), exportações (3), IA (5).
+
 ## Sintaxe `@` no chat de "Criar jogo"
 
 `@pasta/` (pasta inteira, com subpastas) · `@guerreiro` (sprite com todas as ações) · `@guerreiro:andar` (uma ação) · `@guerreiro:andar.roupa` (uma camada) · `@floresta` (cenário). O app envia à IA só um **resumo** (nome, tamanho, ações, camadas) e a IA pede o detalhe por `ler_sprite` / `ler_cenario` quando precisar.
@@ -69,7 +77,7 @@ O app monta o `assets.json` sozinho a partir dos sprites e cenários que eu cite
 ## Etapas
 
 1. ✔ Tela inicial, armazenamento por tipo de item e gerenciador de pastas (com lixeira).
-2. Editor de pixel art: (a) desenho, camadas, quadros, onion skin, animação, salvamento nas pastas; (b) painel de ações e propriedades (origem, hitbox, flipX). Pronto quando: desenho um cavalo em camadas, crio 4 quadros, vejo animar, fecho o navegador e reabro com tudo salvo.
+2. Editor de pixel art: ✔ 2a feita (ver seção Editor); falta (b). Plano original: (a) desenho, camadas, quadros, onion skin, animação, salvamento nas pastas; (b) painel de ações e propriedades (origem, hitbox, flipX). Pronto quando: desenho um cavalo em camadas, crio 4 quadros, vejo animar, fecho o navegador e reabro com tudo salvo.
 3. Importar/exportar JSON, PNG, sprite sheet, GIF, camadas separadas, importar PNG para a paleta (aviso acima de 36 cores), ZIP de backup, variações sem IA (trocar cor, espelhar, "neve"), validação de JSON com mensagem clara e correção automática.
 4. Construção de cenário (referências, 3 camadas de profundidade, sólido/decoração, salvo nas pastas).
 5. Módulo de chat com IA (provedores configuráveis: Gemini primeiro, depois um compatível com OpenAI como OpenRouter; chamada de ferramentas; CORS tratado) e **"Solicitar IA"** nos sprites, devolvendo cópia no editor.
