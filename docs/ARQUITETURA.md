@@ -38,6 +38,23 @@ screens/editor.js ──► editor/controlador.js ──► editor/documento.js 
 - **Vista:** um `<canvas>` por tela com zoom inteiro (pixels nítidos), grade a partir de 6×, cebola, seleção e contorno do pixel sob o ponteiro. Usa `pointer events` (mouse, toque, caneta) com `touch-action: none`; dois dedos fazem pinça e mover.
 - **Gavetas:** Cores (esquerda) e Chamar IA (direita) são `<aside>` com uma aba sempre visível. Abaixo de 900 px cobrem o desenho; acima, empurram.
 
+## Arquivos, backup e variações (Etapa 3)
+
+```
+screens/editor.js ──► editor/dialogos-arquivo.js ──► editor/exportar.js ──► editor/imagem.js · png.js · gif.js · core/zip.js
+        │                       └──────────────────► editor/importar.js ──► editor/imagem.js · documento.js
+        ├──► editor/dialogos-editor.js ──► editor/dialogos-variacoes.js ──► editor/variacoes.js · cores.js
+        └──► editor/referencia.js
+screens/backup.js ──► core/backup.js ──► core/zip.js · core/storage.js
+```
+
+- **Tudo sem tela onde dá.** `imagem.js`, `png.js`, `gif.js`, `exportar.js`, `importar.js`, `variacoes.js`, `cores.js`, `zip.js` e `backup.js` (a parte de montar/ler) não tocam no DOM, então rodam no Node nos testes. Só `dialogos-*.js`, `referencia.js` e `screens/backup.js` desenham tela. O `Controlador` ganhou `adicionarCores`, `deslocarMatiz` e `aplicarNeve` (cada um é **um** passo de desfazer), as funções que a IA da Etapa 5 também vai chamar.
+- **Codificadores próprios** (sem biblioteca em `/vendor`): ZIP (deflate pelo `CompressionStream` do navegador, CRC32 próprio, proteção contra *zip-slip* e *zip bomb* na leitura), PNG (RGBA; zlib pelo `CompressionStream`, com modo sem compressão de reserva) e GIF (LZW). A paleta de 36 itens cabe nos 256 do GIF; importar imagem com mais de 35 cores usa *median cut* e avisa.
+- **Importar JSON** (`corrigirSprite`): em vez de recusar, reconstrói o que dá (paleta sem repetidas, transparente na posição 0, linhas curtas ou longas, camadas e nomes inválidos) e devolve a **lista do que mudou** para o usuário aceitar. Só recusa o que não tem conserto (não é JSON, sem nenhum quadro, grande demais).
+- **Imagem de inspiração** fica em `ctl.referencia`, **fora do `estado`**: não entra no desfazer (desfazer um traço não pode fazer a imagem sumir) nem nos exportadores de imagem. Vai no campo `reference` do JSON do primeiro frame da cadeia e no rascunho.
+- **Backup:** ZIP com `backup.json` (manifesto: app, formato, itens com id/tipo/nome/pai/arquivo/datas/resumo) + os dados de cada item + cópias legíveis na mesma árvore de pastas + `LEIA-ME.txt`. Fica de fora a lixeira, o rascunho e as chaves de API (que só existem no `localStorage`). **Restaurar** lê e valida tudo antes de gravar, cria uma pasta nova na raiz (`Restaurado em dd-mm-aaaa HHhMM`), gera **ids novos** e grava numa única transação (`importarArvore`): ou entra tudo ou nada, e nada existente é sobrescrito. Itens defeituosos viram avisos, não travam o resto.
+- **Variações:** `variacoes.js` só calcula (recebe o desenho, devolve a paleta e os quadros novos); o `Controlador` aplica em uma transação. A neve olha o desenho com as camadas **visíveis** juntas e pinta na camada que o usuário enxerga naquele pixel.
+
 ## Modelo de dados
 
 Banco `mini-engine`, versão 1, três stores:
@@ -61,7 +78,7 @@ Banco `mini-engine`, versão 1, três stores:
 ## Como as próximas etapas se encaixam
 
 - **Editor (Etapa 2):** 2a pronta (ver acima). Abre `#/editor` (pergunta criar/abrir) ou `#/editor/<id>` (abre a cadeia daquele frame). Na 2b, as **ações** (andar, correr…) serão uma convenção de nomes sobre grupos de arquivos (`personagem_acao_direcao_NN`) mais propriedades (origem, hitbox, flipX), em vez de um objeto dentro de um único sprite; isso mantém um frame por arquivo, como pedido. O campo `name` dentro do JSON é sincronizado com o nome do item ao salvar.
-- **Cenário (Etapa 4):** guarda **referências** (id do sprite + posição + camada de profundidade 1/2/3 + sólido/decoração), não cópias. O formato em `core/modelos.js` é provisório.
-- **IA (Etapas 5 e 6):** um módulo de chat único (provedores, chave, anexos, chamada de ferramentas) usado pelo "Solicitar IA" do sprite e pelo "Criar jogo". As chaves ficam só no `localStorage`. No "Criar jogo" a IA recebe apenas ferramentas de leitura dos sprites e cenários.
+- **Cenário (Etapa 4):** guarda **referências** (id do sprite + posição + camada de profundidade 1/2/3 + sólido/decoração), não cópias. O formato em `core/modelos.js` é provisório. Pedido registrado: mover os itens segurando e arrastando, com a ordem de profundidade valendo ao vivo (um item de ordem 2 arrastado para trás de um de ordem 3 fica escondido atrás dele).
+- **IA (Etapas 5 e 6):** pedidos registrados para a 5: comando `aprimorar`, mostrar o resultado primeiro e entregar frame por frame quando o pedido tiver vários frames, e nunca mandar a imagem de inspiração (`reference`) à IA sem o usuário anexar de propósito. Um módulo de chat único (provedores, chave, anexos, chamada de ferramentas) usado pelo "Solicitar IA" do sprite e pelo "Criar jogo". As chaves ficam só no `localStorage`. No "Criar jogo" a IA recebe apenas ferramentas de leitura dos sprites e cenários.
 - **Jogo de teste:** `<iframe sandbox>` **sem** `allow-same-origin`, para que o código gerado pela IA não consiga ler o `localStorage` (onde ficam as chaves). Phaser, sprites e `assets.json` entram no iframe montados em memória.
-- **Backup:** ZIP do projeto inteiro na Etapa 3, porque o navegador pode apagar o IndexedDB e a persistência não é garantida.
+- **Backup:** feito na Etapa 3 (ver acima), porque o navegador pode apagar o IndexedDB e a persistência não é garantida.
