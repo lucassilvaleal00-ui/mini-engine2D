@@ -87,6 +87,18 @@ screens/jogo.js ──► jogo/projeto.js ──► core/storage.js   (o projeto
 - **Correção automática:** depois de aplicar uma resposta, o app roda o jogo e espera ~3,5 s; se houver erro, manda o erro à IA (até 3 vezes seguidas).
 - **IA:** `core/ia.js` é único e servirá também ao "Solicitar IA" dos sprites. Gemini (`generateContent`, `systemInstruction`, imagens `inlineData`, ignora partes de "pensamento") e OpenRouter (`chat/completions`, imagens `image_url`). Erros traduzidos (chave inválida, sem crédito, limite, modelo inexistente, sem internet).
 
+## Construção de cenário
+
+```
+screens/cenario.js ──► cenario/modelo.js ──► core/storage.js   (item `cenario`)
+        ├──► cenario/vista.js ──► cenario/render.js ──► editor/documento.js · imagem.js
+        └──► ui/miniaturas.js (também usada pelo Gerenciador)
+jogo/assets.js ──► cenario/render.js (uma imagem PNG por nível para o jogo)
+```
+
+- O cenário guarda **referências** (`spriteId` = id do item do frame + `quadro`). `render.js` lê o sprite com cache pela data de alteração, então editar o desenho atualiza o cenário e o jogo.
+- `vista.js` desenha num canvas 2D com zoom e deslocamento; objetos em `ordemDeDesenho` (nível, depois a ordem da lista). Arrastar só muda x e y, então a profundidade vale durante o arrasto. Desfazer guarda fotografias do cenário (até 60).
+
 ## Modelo de dados
 
 Banco `mini-engine`, versão 1, três stores:

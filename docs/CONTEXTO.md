@@ -63,6 +63,15 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - O "Chamar IA" do editor já tem o botão Modelo IA (mesma escolha/chaves do Criar jogo). Imagens anexadas no chat: a IA recebe a versão até 1024 px; o projeto guarda só miniaturas (160 px).
 - **Ainda falta da Etapa 5:** o "Solicitar IA" nos sprites (com o comando `aprimorar`, mostrar o resultado antes e entregar frame por frame), que vai reaproveitar o `core/ia.js`.
 
+## Construção de cenário (já implementada, Etapa 4)
+
+- Rotas `#/cenario` (lista + "＋ Novo cenário": nome primeiro, depois grade 8/16/32/64, tamanho em células, pasta) e `#/cenario/<id>`. Layout do desenho do usuário: pastas e arquivos à esquerda (miniatura do 1º frame), tela gigante com grade no centro, informações do objeto à direita (nível 1/2/3, sólido/decoração, frame, posição…). Celular: 📁 Arquivos e ℹ Info.
+- Formato (`src/cenario/modelo.js`, version 2): `{ name, grade, colunas, linhas, fundo, objetos: [{ id, spriteId, quadro, x, y, nivel, solido, espelhar }] }`; `spriteId` é o id do ITEM do frame (referência, não cópia). Ordem: nível, depois a ordem da lista.
+- Desenho com vários frames → o app pergunta qual frame colocar. Arrastar respeita a profundidade ao vivo (pedido da Etapa 3, atendido). Salva sozinho; desfazer/refazer.
+- No Criar jogo: `@cenário` → uma imagem por nível + objetos/sólidos; `montarCenario(this, key)` (depth 10/20/30).
+- Gerenciador: miniaturas (`src/ui/miniaturas.js`) e vista Lista/Blocos (localStorage `miniengine.gerenciador.vista`).
+- Chave da PixelLab (`miniengine.ia.chave.pixellab`, teste em `GET https://api.pixellab.ai/v2/balance` com Bearer): guardada para o futuro "Solicitar IA".
+
 ## Pedidos do usuário para as próximas etapas (registrados na Etapa 3, ainda NÃO implementados)
 
 **Para a Etapa 5 (chat com IA e "Solicitar IA"):**
@@ -71,7 +80,7 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Quando o pedido envolver **mais de um frame** (ex.: "faça o andar"), a IA entrega **frame por frame**: mostra um, o usuário vê, e segue para o próximo; nunca despeja todos de uma vez.
 - Ao montar o JSON do sprite para a IA, **tirar o campo `reference`** (imagem de inspiração em base64): ele é enorme e só deve ir se o usuário anexar a imagem de propósito.
 
-**Para a Etapa 4 (construtor de cenário):**
+**Para a Etapa 4 (construtor de cenário) — ATENDIDO:**
 - Mover os itens **segurando e arrastando** (toque e mouse), com a profundidade valendo ao vivo: cada item tem ordem 1, 2 ou 3 (fundo, meio, frente); se um item de ordem 2 for arrastado para trás de um item de ordem 3, o de ordem 2 deve ficar **escondido atrás** do de ordem 3 (o de ordem 3 é sempre desenhado por cima). Assim o usuário tem noção do que está montando enquanto mexe.
 
 ## Sintaxe `@` no chat de "Criar jogo"
@@ -119,7 +128,7 @@ O app monta o `assets.json` sozinho a partir dos sprites e cenários que eu cite
 1. ✔ Tela inicial, armazenamento por tipo de item e gerenciador de pastas (com lixeira).
 2. Editor de pixel art: ✔ 2a feita (ver seção Editor); falta (b). Plano original: (a) desenho, camadas, quadros, onion skin, animação, salvamento nas pastas; (b) painel de ações e propriedades (origem, hitbox, flipX). Pronto quando: desenho um cavalo em camadas, crio 4 quadros, vejo animar, fecho o navegador e reabro com tudo salvo.
 3. ✔ Importar/exportar JSON, PNG, sprite sheet, GIF, camadas separadas, importar PNG para a paleta (aviso acima de 36 cores), ZIP de backup, variações sem IA (trocar cor, espelhar, "neve"), validação de JSON com mensagem clara e correção automática. Mais a imagem de inspiração (ver seção Editor).
-4. Construção de cenário (referências, 3 camadas de profundidade, sólido/decoração, salvo nas pastas).
+4. ✔ Construção de cenário (referências, 3 camadas de profundidade, sólido/decoração, salvo nas pastas).
 5. ✔ Módulo de chat com IA (Gemini e OpenRouter) — falta o **"Solicitar IA"** nos sprites, devolvendo cópia no editor.
 6. ✔ Criar jogo: projetos com imagem, chat, `@`, iframe de teste, console de erros, correção automática (até 3 tentativas), versões com desfazer, pendências, conversas ligadas. (Feito antes da Etapa 4.)
 7. Entrega: ZIP do jogo, PWA instalável (ou Capacitor, que exige PC com Node e Android Studio), sincronização opcional com GitHub por token restrito a um repositório, README final.
