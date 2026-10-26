@@ -84,6 +84,26 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - Cada desenho aparece com a **imagem do primeiro frame**, o jogo com a imagem do projeto e o cenário com a miniatura dele.
 - **☰ Lista / ▦ Blocos** troca a visualização da pasta, e a escolha fica lembrada neste aparelho.
 
+## Modelo IA organizado
+
+- Três abas: **Gemini**, **OpenRouter** e **PixelLab** (a PixelLab desenha pixel art, não programa; por isso fica separada).
+- Em vez da lista enorme, cada aba mostra **poucos recomendados**, com explicação:
+  - **Gemini:** *Recomendado* (o Flash estável mais novo), *Mais caprichado* (Pro) e *Mais leve* (Flash-Lite).
+  - **OpenRouter:** até 5 **grátis** bons para programar (um de cada família) e alguns **pagos** baratos e bons.
+  - A lista completa fica em "Outros modelos", com busca.
+- Cada modelo tem o botão **Testar**: manda um pedido mínimo com a sua chave e mostra ✓ funcionou (com o tempo) ou ✗ e o erro. O resultado fica lembrado.
+- Por que alguns dão erro: os grátis têm limite de pedidos por minuto e por dia, e cada correção automática do jogo também conta como pedido. Modelos "preview" e "exp" são de teste.
+
+## Cenários no Criar jogo (a IA respeitar o cenário)
+
+- Chame o cenário com **@nome** no chat. A IA recebe:
+  - um **MAPA em texto** do cenário (uma letra por célula: maiúscula = sólido, minúscula = decoração, "." = livre);
+  - a legenda e a lista de objetos com posições;
+  - regras explícitas: usar o cenário pronto, não redesenhar, colidir com os sólidos e pôr o jogador num lugar livre.
+- `montarCenario(this, 'chave')` agora faz quase tudo sozinho: desenha os 3 níveis, cria os sólidos com física (`cen.grupoSolidos`) e ajusta o mundo e a câmera ao tamanho do cenário. `cen.pontoLivre()` acha um lugar livre para começar, e `cen.acharObjetos('moeda')` acha objetos pelo nome.
+- Se você falar de um cenário sem o @, a IA é orientada a pedir que você o chame com @.
+- **Excluir cenário:** 🗑 no cartão da lista ou no topo do construtor. Ele vai para a Lixeira, com Desfazer. Os projetos do Criar jogo também ganharam o 🗑.
+
 ## Chaves de IA
 
 - **Gemini:** https://aistudio.google.com/apikey
