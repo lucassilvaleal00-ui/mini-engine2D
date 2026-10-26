@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Situação:** prontos a Etapa 1 (início, armazenamento, gerenciador), a 2a (editor de pixel art), a 3 (arquivos, imagem de inspiração, variações, backup), a sincronização PC ↔ celular (Supabase) e o **Criar jogo** com o módulo de IA (etapas 5 e 6, feitas antes da 4 a seu pedido). Últimos ajustes: o "←" do Criar jogo agora vai do projeto para a lista e da lista para o início (antes ficava indo e voltando entre os dois); o "Chamar IA" do editor ganhou o botão Modelo IA; as imagens anexadas no chat ficam guardadas só como miniatura (o projeto não pesa na nuvem); o botão "Adicionar imagem de inspiração" voltou a abrir a janela de arquivos, e o cursor vira um balde ou um conta-gotas ao usar essas ferramentas. **Próxima:** Etapa 4 (Construtor de cenário). Ainda faltam também o painel de camadas, a Etapa 2b (ações e propriedades) e o "Solicitar IA" nos sprites.
+**Situação:** prontas as Etapas 1, 2a, 3, **4 (Construção de cenário)**, 5 (módulo de IA) e 6 (Criar jogo), mais a sincronização PC ↔ celular (Supabase). O Gerenciador ganhou miniaturas e a vista em blocos, e o Modelo IA ganhou o campo da chave da PixelLab. Ainda faltam o painel de camadas, a Etapa 2b (ações e propriedades), o "Solicitar IA" nos sprites e a Etapa 7 (entrega).
 
 ## O que a Etapa 1 entrega
 
@@ -51,6 +51,37 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - Os codificadores de ZIP, PNG e GIF foram escritos para o projeto (sem biblioteca extra em `vendor/`).
 
 **Pedidos já registrados, para as etapas certas** (ainda **não** implementados, porque dependem de telas que não existem): na Etapa 5 (IA) o comando **"aprimorar"**, a IA **mostrar o resultado primeiro** e entregar **frame por frame** quando o pedido tiver vários frames; na Etapa 4 (cenário) **mover os itens segurando e arrastando**, respeitando a ordem de profundidade 1, 2 e 3. Os detalhes estão em [`docs/CONTEXTO.md`](docs/CONTEXTO.md), e a aba "Chamar IA" já lista isso.
+
+## Construção de cenário (Etapa 4)
+
+- **Tela inicial → Construção de cenário**: lista os cenários (com miniatura). **＋ Novo cenário** pergunta primeiro o **nome**, depois o tamanho da célula da grade (8, 16, 32 ou 64 px, o mesmo dos seus sprites), o tamanho em células e a pasta onde guardar.
+- **Construtor** (como no seu desenho):
+  - **à esquerda, as pastas e arquivos**, com a imagem do 1º frame de cada desenho;
+  - **no centro, a tela gigante com grade**: dá zoom (roda do mouse, pinça, ＋ －), move a vista (arraste no vazio, ✋, Espaço ou dois dedos) e ⤢ mostra tudo;
+  - **à direita, as informações** do objeto selecionado: frame, **nível 1 Fundo / 2 Meio / 3 Frente**, Sólido (colide) ou Decoração, posição, espelhar, para a frente e para trás no nível, duplicar e remover. Sem nada selecionado, aparecem as informações do cenário: ver só alguns níveis, encaixar na grade, cor de fundo e tamanho;
+  - **no celular**, os painéis abrem pelos botões 📁 Arquivos e ℹ Info.
+- **Colocar:** toque num desenho; se ele tiver **vários frames, o app pergunta qual frame colocar**. Depois toque no cenário, quantas vezes quiser, e na faixa de cima escolha o nível. **✕ Parar** ou Esc encerra.
+- **Mover:** segure e arraste. A profundidade vale na hora: um objeto do nível 2 arrastado para trás de um do nível 3 fica **escondido atrás dele**.
+- **Atalhos (PC):**
+  - Delete remove o objeto;
+  - as setas movem uma célula (com Shift, 1 pixel);
+  - 1, 2 e 3 mudam o nível;
+  - Ctrl+D duplica;
+  - Ctrl+Z e Ctrl+Y desfazem e refazem.
+- **Salva sozinho** a cada mudança e sincroniza com a nuvem. O cenário guarda **referências** aos frames, não cópias: se você editar o sprite, o cenário muda junto.
+- **No Criar jogo**, chame com `@nomeDoCenario`. A IA recebe uma imagem por nível e a lista de objetos sólidos, e monta com `montarCenario(this, 'chave')`: o fundo, o meio e a frente ficam em profundidades diferentes, e o jogador pode passar atrás da frente.
+
+## Gerenciador: miniaturas e blocos
+
+- Cada desenho aparece com a **imagem do primeiro frame**, o jogo com a imagem do projeto e o cenário com a miniatura dele.
+- **☰ Lista / ▦ Blocos** troca a visualização da pasta, e a escolha fica lembrada neste aparelho.
+
+## Chaves de IA
+
+- **Gemini:** https://aistudio.google.com/apikey
+- **OpenRouter:** https://openrouter.ai/keys (entre na conta → *Keys* → *Create Key*; a chave começa com `sk-or-`).
+- **PixelLab** (gera pixel art): https://www.pixellab.ai/account (entre na conta e copie o *API token*; é paga por uso). Fica em **Modelo IA → Chave da PixelLab**, com o botão "Salvar e testar". Ela será usada pelo "Solicitar IA" dos sprites.
+- Todas as chaves ficam só no aparelho onde você colou: não vão para a nuvem, nem para o backup, nem para o jogo.
 
 ## Criar jogo (chat com a IA + teste ao vivo)
 
@@ -216,7 +247,8 @@ src/
     referencia.js     painel da imagem de inspiração
     dialogos-arquivo.js, dialogos-variacoes.js   janelas de exportar, importar, tom e neve
     painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
-  screens/            inicio, gerenciador, lixeira, backup, nuvem, jogo, diagnostico, editor, em-breve
+  screens/            inicio, gerenciador, lixeira, backup, nuvem, jogo, cenario, diagnostico, editor, em-breve
+  cenario/            Construção de cenário: modelo.js (dados e regras), render.js (junta os frames), vista.js (tela gigante)
   jogo/               Criar jogo: projeto.js (dados), mencoes.js (@), assets.js (sprite sheets),
                       conversa.js (o que a IA recebe e como a resposta vira arquivos), palco.js (iframe),
                       dialogo-modelo.js (Modelo IA e chaves)
@@ -243,7 +275,7 @@ docs/                 ARQUITETURA.md, CONTEXTO.md e supabase.sql (tabela da nuve
 | 1 | Tela inicial, armazenamento e gerenciador de pastas ✔ |
 | 2 | Editor de pixel art — **2a: desenho, frames, paleta, salvar ✔** · camadas (painel) · 2b: ações e propriedades |
 | 3 | Importar/exportar, imagem de inspiração, variações e backup em ZIP ✔ |
-| 4 | Construção de cenário |
+| 4 | Construção de cenário ✔ |
 | 5 | Módulo de chat com IA ✔ (Gemini e OpenRouter) · falta o "Solicitar IA" nos sprites |
 | 6 | Criar jogo (chat, teste ao vivo, correção automática) ✔ |
 | 7 | Entrega (ZIP do jogo, PWA ou Capacitor, sincronização com GitHub) |
