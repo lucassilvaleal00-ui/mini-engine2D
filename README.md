@@ -52,6 +52,14 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 
 **Pedidos já registrados, para as etapas certas** (ainda **não** implementados, porque dependem de telas que não existem): na Etapa 5 (IA) o comando **"aprimorar"**, a IA **mostrar o resultado primeiro** e entregar **frame por frame** quando o pedido tiver vários frames; na Etapa 4 (cenário) **mover os itens segurando e arrastando**, respeitando a ordem de profundidade 1, 2 e 3. Os detalhes estão em [`docs/CONTEXTO.md`](docs/CONTEXTO.md), e a aba "Chamar IA" já lista isso.
 
+## Últimos ajustes do editor e do cenário
+
+- **＋ Novo desenho** no topo do editor: começa outro desenho sem sair. Se o atual tiver alterações não salvas, o app pergunta: **Salvar agora**, **Guardar como rascunho** ou **Descartar as alterações**.
+- **Vários rascunhos:** cada desenho não salvo tem o seu (até 10), e todos aparecem na tela do editor em "Continuar rascunho".
+- **Borracha e lápis maiores:** **Ctrl +** aumenta e **Ctrl −** diminui (de 1×1 até 16×16). Também há os botões − e + na barra e as teclas [ e ]. O contorno sob o mouse mostra o tamanho.
+- **Cenário: ferramenta Selecionar** (embaixo, à esquerda; ao lado da ✋ Mão). Toque num objeto: aparece uma barra em cima com **Nível 1 Fundo / 2 Meio / 3 Frente**, ⧉ duplicar, **🗑 Apagar** e ✕. Se houver objetos empilhados, tocar de novo passa para o de baixo.
+- O cenário continua pedindo a **grade** (8, 16, 32 ou 64) e o tamanho ao ser criado.
+
 ## Construção de cenário (Etapa 4)
 
 - **Tela inicial → Construção de cenário**: lista os cenários (com miniatura). **＋ Novo cenário** pergunta primeiro o **nome**, depois o tamanho da célula da grade (8, 16, 32 ou 64 px, o mesmo dos seus sprites), o tamanho em células e a pasta onde guardar.
