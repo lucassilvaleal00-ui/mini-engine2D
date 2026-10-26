@@ -81,7 +81,8 @@ export class VistaCenario {
     this.canvas.height = Math.round(this.ch * this.dpr);
     this.canvas.style.width = `${this.cw}px`;
     this.canvas.style.height = `${this.ch}px`;
-    if (!this._ajustado) { this.ajustar(); this._ajustado = true; } else this.desenhar();
+    // só enquadra quando o palco já tem tamanho de verdade (senão o zoom sai minúsculo e fica assim)
+    if (!this._ajustado && this.cw > 40 && this.ch > 40) { this.ajustar(); this._ajustado = true; } else this.desenhar();
   }
 
   /** Cabe o cenário inteiro na tela. */
@@ -111,17 +112,21 @@ export class VistaCenario {
     return { x: (ev.clientX - r.left - this.px) / this.zoom, y: (ev.clientY - r.top - this.py) / this.zoom, sx: ev.clientX - r.left, sy: ev.clientY - r.top };
   }
 
-  /** Objeto mais de cima sob o ponto (só níveis visíveis). */
-  acertar(x, y) {
+  /** Objetos sob o ponto, do mais de cima para o de baixo (só níveis visíveis). */
+  todosSob(x, y) {
     const vis = this.op.niveisVisiveis();
     const lista = ordemDeDesenho(this.op.cenario()).filter((o) => vis.has(o.nivel));
+    const saida = [];
     for (let i = lista.length - 1; i >= 0; i--) {
       const o = lista[i];
       const [w, h] = this.tamanho(o);
-      if (x >= o.x && x < o.x + w && y >= o.y && y < o.y + h) return o;
+      if (x >= o.x && x < o.x + w && y >= o.y && y < o.y + h) saida.push(o);
     }
-    return null;
+    return saida;
   }
+
+  /** Objeto mais de cima sob o ponto. */
+  acertar(x, y) { return this.todosSob(x, y)[0] || null; }
 
   /* ---------- desenho ---------- */
   desenhar() {
@@ -260,10 +265,14 @@ export class VistaCenario {
         return;
       }
       if (this.op.pincel()) { this._acao = { tipo: 'colocar', sx: pt.sx, sy: pt.sy, px: this.px, py: this.py, moveu: false }; return; }
-      const o = this.acertar(pt.x, pt.y);
+      // Seleção: o de cima é escolhido; se o já selecionado estiver sob o dedo, ele continua
+      // (para poder arrastar o de baixo). Tocar de novo sem arrastar passa para o objeto de baixo.
+      const sob = this.todosSob(pt.x, pt.y);
+      const atual = sob.find((x) => x.id === this.op.selecionado());
+      const o = atual || sob[0];
       if (o) {
         this.op.aoSelecionar(o.id);
-        this._acao = { tipo: 'arrastar', id: o.id, dx: pt.x - o.x, dy: pt.y - o.y, sx: pt.sx, sy: pt.sy, moveu: false };
+        this._acao = { tipo: 'arrastar', id: o.id, dx: pt.x - o.x, dy: pt.y - o.y, sx: pt.sx, sy: pt.sy, moveu: false, ciclo: !!atual && sob.length > 1, sob };
       } else {
         this._acao = { tipo: 'vazio', sx: pt.sx, sy: pt.sy, px: this.px, py: this.py, moveu: false };
       }
@@ -313,7 +322,13 @@ export class VistaCenario {
       this._acao = null;
       c.classList.remove('arrastando');
       if (!a || cancelado) return;
-      if (a.tipo === 'arrastar') this.op.aoSoltar(a.id, a.moveu);
+      if (a.tipo === 'arrastar') {
+        this.op.aoSoltar(a.id, a.moveu);
+        if (!a.moveu && a.ciclo) {
+          const i = a.sob.findIndex((x) => x.id === a.id);
+          this.op.aoSelecionar(a.sob[(i + 1) % a.sob.length].id);
+        }
+      }
       else if (a.tipo === 'vazio' && !a.moveu) this.op.aoSelecionar(null);
       else if (a.tipo === 'colocar' && !a.moveu) {
         const pos = this.posicaoDoPincel(this.paraMundo(e));

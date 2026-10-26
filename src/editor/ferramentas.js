@@ -194,4 +194,7 @@ export function criarFerramentas() {
   return [lapis, borracha, balde, linha, retangulo, elipse, contaGotas, selecionar, moverTudo, mao];
 }
 
+/** Maior pincel/borracha (Ctrl + e Ctrl − mudam o tamanho). */
+export const TAMANHO_PINCEL_MAX = 16;
+
 export const OPCOES_PADRAO = { tamanho: 1, simetria: 'nenhuma', preencher: false, global: false };

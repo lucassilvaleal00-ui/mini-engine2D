@@ -206,8 +206,11 @@ export class Vista {
     if (this.hover && !this._pan && !this._gesto) {
       const { x, y } = this.hover;
       if (x >= 0 && y >= 0 && x < w && y < h) {
+        // mostra a área do pincel/borracha (mesma conta de algoritmos.pincel)
+        const t = Math.max(1, this.tamanhoDoContorno?.() || 1);
+        const o = Math.floor((t - 1) / 2);
         ctx.strokeStyle = 'rgba(255,255,255,.85)';
-        ctx.strokeRect(px + x * z + 0.5, py + y * z + 0.5, z - 1, z - 1);
+        ctx.strokeRect(px + (x - o) * z + 0.5, py + (y - o) * z + 0.5, t * z - 1, t * z - 1);
       }
     }
     this.aoDesenhar?.();

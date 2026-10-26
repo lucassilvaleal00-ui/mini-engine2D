@@ -4,6 +4,7 @@
 
 import { h, preencher } from '../ui/dom.js';
 import { icone } from './icones.js';
+import { TAMANHO_PINCEL_MAX } from './ferramentas.js';
 
 const SIMETRIAS = [
   ['nenhuma', 'Nenhum', 'Sem espelho'],
@@ -34,7 +35,12 @@ export function criarBarraFerramentas(ferramentas, op, estado, extras) {
     const tem = (nome) => ferr.opcoes?.includes(nome);
 
     if (tem('tamanho')) {
-      itens.push(grupo('Tamanho', ...[1, 2, 3, 4].map((n) => segmento(String(n), `Pincel ${n}×${n}`, op.tamanho === n, () => { op.tamanho = n; desenharOpcoes(); }))));
+      const mudar = (n) => { op.tamanho = Math.max(1, Math.min(TAMANHO_PINCEL_MAX, n)); desenharOpcoes(); extras.aoMudarTamanho?.(); };
+      itens.push(grupo('Tamanho',
+        ...[1, 2, 3, 4].map((n) => segmento(String(n), `Pincel ${n}×${n}`, op.tamanho === n, () => mudar(n))),
+        h('button', { class: 'segmento', type: 'button', title: 'Menor (Ctrl −)', 'aria-label': 'Diminuir o tamanho', disabled: op.tamanho <= 1, onclick: () => mudar(op.tamanho - 1) }, '−'),
+        h('span', { class: 'tamanho-atual', 'aria-live': 'polite', title: 'Tamanho atual' }, `${op.tamanho}×${op.tamanho}`),
+        h('button', { class: 'segmento', type: 'button', title: 'Maior (Ctrl +)', 'aria-label': 'Aumentar o tamanho', disabled: op.tamanho >= TAMANHO_PINCEL_MAX, onclick: () => mudar(op.tamanho + 1) }, '+')));
     }
     if (tem('simetria')) {
       itens.push(grupo('Espelho', ...SIMETRIAS.map(([id, rot, tit]) => segmento(rot, tit, op.simetria === id, () => { op.simetria = id; desenharOpcoes(); }))));

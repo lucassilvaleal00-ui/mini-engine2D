@@ -10,14 +10,14 @@
 
 import { h, preencher } from '../ui/dom.js';
 import { aviso, avisarErro } from '../ui/toast.js';
-import { confirmar, menuAcoes } from '../ui/dialogos.js';
+import { confirmar, menuAcoes, abrirDialogo } from '../ui/dialogos.js';
 import { formatarDataHora, pluralizar } from '../ui/formato.js';
 import { RAIZ } from '../core/tipos.js';
 import * as armazem from '../core/storage.js';
 import { novoEstado, corMaisProxima, rgbParaHex } from '../editor/documento.js';
 import { Controlador } from '../editor/controlador.js';
 import { Vista } from '../editor/vista.js';
-import { criarFerramentas, OPCOES_PADRAO } from '../editor/ferramentas.js';
+import { criarFerramentas, OPCOES_PADRAO, TAMANHO_PINCEL_MAX } from '../editor/ferramentas.js';
 import { criarPainelPaleta } from '../editor/painel-paleta.js';
 import { criarPainelQuadros } from '../editor/painel-quadros.js';
 import { criarPainelIA } from '../editor/painel-ia.js';
@@ -45,7 +45,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
     limpeza();
     limpeza = () => {};
     el.classList.remove('editor-ativo');
-    const rascunho = await arquivo.lerRascunho().catch(() => null);
+    const rascunhos = await arquivo.lerRascunhos().catch(() => []);
 
     preencher(el,
       h('header', { class: 'topo' },
@@ -56,14 +56,16 @@ export async function montar(el, { parametro, navegar, voltar }) {
         cartao('Criar', '✨', 'Começar um desenho novo, em branco.', criar),
         cartao('Abrir', '📂', 'Continuar um desenho salvo nas suas pastas.', () => mostrarAbrir(RAIZ)),
         cartao('Importar', '📥', 'Trazer uma imagem PNG ou um arquivo JSON de fora.', importarNaEscolha),
-        rascunho && cartao('Continuar rascunho', '📝',
-          `${rascunho.estado.nome || 'Sem nome'} · ${pluralizar(rascunho.estado.quadros.length, 'frame', 'frames')} · ${formatarDataHora(rascunho.em)}`,
-          () => iniciarEdicao(rascunho.estado, rascunho.origem, { sujo: true, referencia: rascunho.referencia ?? null }))),
-      rascunho && h('div', { class: 'barra-acoes' },
-        h('button', { class: 'link', type: 'button', onclick: descartarRascunho }, 'Descartar o rascunho')));
+        rascunhos.map((r) => cartao('Continuar rascunho', '📝',
+          `${r.estado.nome || 'Sem nome'} · ${pluralizar(r.estado.quadros.length, 'frame', 'frames')} · ${formatarDataHora(r.em)}`,
+          () => iniciarEdicao(r.estado, r.origem, { sujo: true, referencia: r.referencia ?? null, rascunhoId: r.id })))),
+      rascunhos.length > 0 && h('div', { class: 'barra-acoes quebra' },
+        rascunhos.map((r) => h('button', {
+          class: 'link', type: 'button', onclick: () => descartarRascunho(r.id),
+        }, rascunhos.length > 1 ? `Descartar o rascunho “${r.estado.nome || 'Sem nome'}”` : 'Descartar o rascunho'))));
   }
 
-  async function descartarRascunho() {
+  async function descartarRascunho(id) {
     const certo = await confirmar({
       titulo: 'Descartar o rascunho?',
       mensagem: 'As alterações que você não salvou serão perdidas. Isso não pode ser desfeito.',
@@ -71,7 +73,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
       perigo: true,
     });
     if (!certo) return;
-    await arquivo.apagarRascunho().catch(() => {});
+    await arquivo.apagarRascunho(id).catch(() => {});
     await mostrarEscolha();
   }
 
@@ -143,8 +145,10 @@ export async function montar(el, { parametro, navegar, voltar }) {
   /* Modo 2: o editor                                                  */
   /* ================================================================ */
 
-  function iniciarEdicao(estado, origem, { sujo = false, referencia = null } = {}) {
+  function iniciarEdicao(estado, origem, { sujo = false, referencia = null, rascunhoId = null } = {}) {
     limpeza();
+    const idRascunho = rascunhoId || armazem.novoId();
+    let descartado = false; // "Descartar" no Novo: não guarda rascunho ao sair
     const ctl = new Controlador(estado, origem, referencia);
     if (sujo) ctl.sujo = true;
     const op = { ...OPCOES_PADRAO };
@@ -168,10 +172,11 @@ export async function montar(el, { parametro, navegar, voltar }) {
     const botaoRefazer = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Refazer', title: 'Refazer (Ctrl+Y)', onclick: () => ctl.refazer() }, icone('refazer', 20));
     const botaoTransformar = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Transformar (espelhar, girar, tom, neve)', title: 'Espelhar, girar, mudar o tom, neve, limpar', onclick: () => menuTransformar(ctl, vista) }, icone('transformar', 20));
     const botaoArquivo = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Exportar e importar', title: 'Exportar e importar', onclick: () => menuArquivo() }, icone('baixar', 20));
-    const botaoSalvar = h('button', { class: 'botao primario', type: 'button', title: 'Salvar (Ctrl+S)', onclick: () => salvar() }, icone('salvar', 18), h('span', { class: 'rotulo' }, 'Salvar'));
+    const botaoNovo = h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Novo desenho', title: 'Novo desenho', onclick: () => novoDesenho() }, '＋');
+    const botaoSalvar = h('button', { class: 'botao primario', type: 'button', 'aria-label': 'Salvar', title: 'Salvar (Ctrl+S)', onclick: () => salvar() }, icone('salvar', 18), h('span', { class: 'rotulo' }, 'Salvar'));
     const topo = h('header', { class: 'editor-topo' },
       h('button', { class: 'botao icone', type: 'button', 'aria-label': 'Sair do editor', onclick: () => sair() }, icone('voltar', 20)),
-      titulo, botaoDesfazer, botaoRefazer, botaoTransformar, botaoArquivo, botaoSalvar);
+      titulo, botaoDesfazer, botaoRefazer, botaoTransformar, botaoArquivo, botaoNovo, botaoSalvar);
 
     function atualizarTopo() {
       preencher(titulo,
@@ -244,11 +249,14 @@ export async function montar(el, { parametro, navegar, voltar }) {
     /* ---------- canvas ---------- */
     const areaCanvas = h('div', { class: 'editor-canvas' });
     const status = h('span', { class: 'status', 'aria-live': 'off' });
+    // o contorno sob o mouse mostra o tamanho do pincel/borracha (só nas ferramentas que têm tamanho)
+    const tamanhoDoContorno = () => (ferr.opcoes?.includes('tamanho') && !ferr.id.match(/linha|retangulo|elipse/) ? op.tamanho : 1);
     vista = new Vista(areaCanvas, ctl, {
       atual: () => ferr,
       contexto: () => ctx,
     });
     vista.canvas.dataset.ferramenta = ferr.id;
+    vista.tamanhoDoContorno = tamanhoDoContorno;
     vista.aoDesenhar = () => {
       const p = vista.hover;
       status.textContent = `${ctl.largura}×${ctl.altura}  ·  ${p && p.x >= 0 && p.y >= 0 && p.x < ctl.largura && p.y < ctl.altura ? `${p.x}, ${p.y}  ·  ` : ''}${Math.round(vista.zoom * 100)}%`;
@@ -276,6 +284,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
     }
     barra = criarBarraFerramentas(ferramentas, op, { atual: () => ferr, escolher }, {
       contexto: () => ctx,
+      aoMudarTamanho: () => vista.desenhar(),
       alternadores: [
         { rotulo: 'Grade', icone: 'grade', ativo: () => vista.grade, alternar: () => { vista.grade = !vista.grade; vista.desenhar(); } },
         { rotulo: 'Cebola', icone: 'cebola', ativo: () => vista.cebola, alternar: () => { vista.cebola = !vista.cebola; vista.desenhar(); } },
@@ -304,7 +313,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
     let relogioRascunho = 0;
     const guardarRascunho = () => {
-      if (ctl.sujo) arquivo.guardarRascunho(ctl.e, ctl.origem, ctl.referencia).catch(() => {});
+      if (ctl.sujo && !descartado) arquivo.guardarRascunho(idRascunho, ctl.e, ctl.origem, ctl.referencia).catch(() => {});
     };
     ctl.on('sujo', (estaSujo) => {
       atualizarTopo();
@@ -320,14 +329,14 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
     /* ---------- salvar e sair ---------- */
     async function salvar() {
-      if (ctl.trabalho) return;
+      if (ctl.trabalho) return false;
       const r = await dialogoSalvar(ctl);
-      if (!r) return;
+      if (!r) return false;
       ctl.origem = r.origem;
       ctl.e.nome = r.origem.base;
       clearTimeout(relogioRascunho);
       ctl.marcarSalvo();
-      await arquivo.apagarRascunho().catch(() => {});
+      await arquivo.apagarRascunho(idRascunho).catch(() => {});
       atualizarTopo();
       const n = r.itens.length;
       const lista = n === 1 ? r.itens[0].nome : `${r.itens[0].nome} … ${r.itens[n - 1].nome}`;
@@ -337,6 +346,43 @@ export async function montar(el, { parametro, navegar, voltar }) {
         duracao: 7000,
         acao: { rotulo: 'Ver pasta', ao: () => navegar(r.pastaId === RAIZ ? '/gerenciador' : `/gerenciador/${r.pastaId}`) },
       });
+      return true;
+    }
+
+    /* ---------- novo desenho (sem sair do editor) ---------- */
+    async function novoDesenho() {
+      if (ctl.trabalho) return;
+      if (ctl.sujo) {
+        const escolha = await abrirDialogo(({ fechar }) => [
+          h('h2', { class: 'dialogo-titulo' }, 'Começar um desenho novo?'),
+          h('p', { class: 'dialogo-texto' }, `“${ctl.e.nome || 'Sem nome'}” tem alterações que ainda não foram salvas. O que fazer com elas?`),
+          h('div', { class: 'menu-acoes' },
+            h('button', { class: 'menu-item', type: 'button', 'data-foco': '', onclick: () => fechar('salvar') },
+              h('span', { class: 'menu-icone' }, '💾'), h('span', { class: 'menu-rotulo' }, 'Salvar agora'), h('small', { class: 'menu-nota' }, 'guarda nas pastas, como o botão Salvar')),
+            h('button', { class: 'menu-item', type: 'button', onclick: () => fechar('rascunho') },
+              h('span', { class: 'menu-icone' }, '📝'), h('span', { class: 'menu-rotulo' }, 'Guardar como rascunho'), h('small', { class: 'menu-nota' }, 'continue depois pela tela do editor')),
+            h('button', { class: 'menu-item perigo', type: 'button', onclick: () => fechar('descartar') },
+              h('span', { class: 'menu-icone' }, '🗑'), h('span', { class: 'menu-rotulo' }, 'Descartar as alterações'), h('small', { class: 'menu-nota' }, 'não tem volta'))),
+          h('button', { class: 'botao largo', type: 'button', onclick: () => fechar(null) }, 'Cancelar'),
+        ]);
+        if (!escolha) return;
+        if (escolha === 'salvar' && !(await salvar())) return;
+        if (escolha === 'rascunho') {
+          clearTimeout(relogioRascunho);
+          await arquivo.guardarRascunho(idRascunho, ctl.e, ctl.origem, ctl.referencia).catch(() => {});
+        }
+        if (escolha === 'descartar') {
+          descartado = true;
+          clearTimeout(relogioRascunho);
+          await arquivo.apagarRascunho(idRascunho).catch(() => {});
+        }
+      }
+      const dados = await dialogoNovo();
+      if (!dados) { descartado = false; return; }
+      const guardou = ctl.sujo && !descartado;
+      descartado = true; // o rascunho (se havia) já foi tratado acima: a limpeza não repete
+      iniciarEdicao(novoEstado(dados), null);
+      if (guardou) aviso('O desenho anterior ficou guardado como rascunho. Continue depois pela tela do editor.', { duracao: 6000 });
     }
 
     /* ---------- exportar e importar ---------- */
@@ -393,6 +439,8 @@ export async function montar(el, { parametro, navegar, voltar }) {
         if (tecla === 'z') { ev.preventDefault(); if (ev.shiftKey) ctl.refazer(); else ctl.desfazer(); }
         else if (tecla === 'y') { ev.preventDefault(); ctl.refazer(); }
         else if (tecla === 's') { ev.preventDefault(); salvar(); }
+        else if (tecla === '+' || tecla === '=') { ev.preventDefault(); mudarTamanho(+1); }  // Ctrl + : pincel/borracha maior
+        else if (tecla === '-' || tecla === '_') { ev.preventDefault(); mudarTamanho(-1); }  // Ctrl - : menor
         return;
       }
       if (ev.altKey) return;
@@ -408,8 +456,8 @@ export async function montar(el, { parametro, navegar, voltar }) {
       if (ferramenta) { escolher(ferramenta.id); return; }
       if (tecla === 'g') { vista.grade = !vista.grade; barra.atualizarOpcoes(); vista.desenhar(); }
       else if (tecla === 'u') { vista.cebola = !vista.cebola; barra.atualizarOpcoes(); vista.desenhar(); }
-      else if (tecla === '[') { op.tamanho = Math.max(1, op.tamanho - 1); barra.atualizarOpcoes(); }
-      else if (tecla === ']') { op.tamanho = Math.min(4, op.tamanho + 1); barra.atualizarOpcoes(); }
+      else if (tecla === '[') mudarTamanho(-1);
+      else if (tecla === ']') mudarTamanho(+1);
       else if (tecla === '+' || tecla === '=') vista.zoomMais();
       else if (tecla === '-') vista.zoomMenos();
       else if ((tecla === 'delete' || tecla === 'backspace') && vista.selecao) {
@@ -417,6 +465,14 @@ export async function montar(el, { parametro, navegar, voltar }) {
         ctl.limparRegiao(vista.selecao);
         barra.atualizarOpcoes();
       } else if (tecla === 'escape' && vista.selecao) { vista.selecao = null; barra.atualizarOpcoes(); vista.desenhar(); }
+    }
+    function mudarTamanho(d) {
+      const novo = Math.max(1, Math.min(TAMANHO_PINCEL_MAX, op.tamanho + d));
+      if (novo === op.tamanho) return;
+      op.tamanho = novo;
+      barra.atualizarOpcoes();
+      vista.desenhar();
+      aviso(`Tamanho do ${ferr.id === 'borracha' ? 'apagador' : 'pincel'}: ${novo}×${novo}`, { duracao: 1200 });
     }
     function aoSoltarTecla(ev) {
       if (ev.key === ' ' && vista.espaco) {
@@ -426,7 +482,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
       }
     }
     function aoFechar(ev) {
-      if (ctl.sujo) { guardarRascunho(); ev.preventDefault(); ev.returnValue = ''; }
+      if (ctl.sujo && !descartado) { guardarRascunho(); ev.preventDefault(); ev.returnValue = ''; }
     }
     document.addEventListener('keydown', aoTecla);
     document.addEventListener('keyup', aoSoltarTecla);
@@ -434,7 +490,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
 
     limpeza = () => {
       clearTimeout(relogioRascunho);
-      if (ctl.sujo) {
+      if (ctl.sujo && !descartado) {
         guardarRascunho();
         aviso('Alterações não salvas ficaram guardadas como rascunho. Continue pela tela do editor.', { duracao: 6000 });
       }

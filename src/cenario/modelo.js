@@ -112,6 +112,16 @@ export function extremoDaOrdem(c, id, paraFrente) {
   return mudou;
 }
 
+/** Muda o nível de um objeto (ele fica por cima dos que já estão no novo nível). */
+export function mudarNivel(c, id, nivel) {
+  const i = c.objetos.findIndex((o) => o.id === id);
+  if (i < 0 || ![1, 2, 3].includes(nivel)) return false;
+  const [o] = c.objetos.splice(i, 1);
+  o.nivel = nivel;
+  c.objetos.push(o);
+  return true;
+}
+
 /** Muda o tamanho do cenário (em células). Objetos fora continuam na lista (podem voltar a aparecer). */
 export function redimensionar(c, { colunas, linhas, grade }) {
   if (grade !== undefined && GRADES.includes(grade) && grade !== c.grade) {

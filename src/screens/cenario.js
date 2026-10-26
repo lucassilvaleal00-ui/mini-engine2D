@@ -18,7 +18,7 @@ import { RAIZ } from '../core/tipos.js';
 import { agruparSprites } from '../editor/arquivo.js';
 import {
   GRADES, NIVEIS, CELULAS_MIN, celulasMaximas, novoIdObjeto, listarCenarios, criarCenario,
-  abrirCenario, salvarCenario, extremoDaOrdem, redimensionar, larguraPx, alturaPx, normalizar,
+  abrirCenario, salvarCenario, extremoDaOrdem, mudarNivel, redimensionar, larguraPx, alturaPx, normalizar,
 } from '../cenario/modelo.js';
 import { estadoDoSprite, frameDoSprite, comporCenario } from '../cenario/render.js';
 import { VistaCenario } from '../cenario/vista.js';
@@ -28,8 +28,8 @@ const MAX_DESFAZER = 60;
 
 // A miniatura de um cenário (Gerenciador e lista) é o cenário inteiro desenhado.
 registrarMiniaturaDeCenario(async (dados) => {
-  const c = normalizar(dados);
-  return rgbaParaCanvas(await comporCenario(c));
+  const img = await comporCenario(normalizar(dados)).catch(() => null);
+  return img ? rgbaParaCanvas(img) : null;
 });
 
 export function montar(el, args) {
@@ -181,13 +181,23 @@ async function montarConstrutor(el, { parametro, navegar, voltar }) {
   const painelInfo = h('aside', { class: 'cen-painel cen-info', 'aria-label': 'Informações' });
   const palco = h('div', { class: 'cen-palco' });
   const faixaPincel = h('div', { class: 'cen-faixa', hidden: true });
-  const bMao = h('button', { class: 'botao pequeno icone', type: 'button', 'aria-pressed': 'false', title: 'Mão: arrastar move a vista', 'aria-label': 'Mão', onclick: () => { modoMao = !modoMao; bMao.setAttribute('aria-pressed', String(modoMao)); } }, '✋');
+  // ferramentas da tela: Selecionar (tocar escolhe, arrastar move) e Mão (arrastar move a vista)
+  const bSelecionar = h('button', { class: 'botao pequeno', type: 'button', 'aria-pressed': 'true', title: 'Selecionar: toque num objeto para escolher; arraste para mover', onclick: () => usarFerramenta('selecionar') }, '↖ Selecionar');
+  const bMao = h('button', { class: 'botao pequeno', type: 'button', 'aria-pressed': 'false', title: 'Mão: arrastar move a vista', onclick: () => usarFerramenta('mao') }, '✋ Mão');
+  const ferramentasTela = h('div', { class: 'cen-ferramentas', role: 'toolbar', 'aria-label': 'Ferramentas' }, bSelecionar, bMao);
+  function usarFerramenta(qual) {
+    if (pincel) desarmar();
+    modoMao = qual === 'mao';
+    bSelecionar.setAttribute('aria-pressed', String(!modoMao));
+    bMao.setAttribute('aria-pressed', String(modoMao));
+  }
+  // barra rápida do objeto selecionado: nível, duplicar e apagar sem abrir o painel
+  const barraSelecao = h('div', { class: 'cen-selecao', hidden: true, role: 'toolbar', 'aria-label': 'Objeto selecionado' });
   const zoom = h('div', { class: 'cen-zoom' },
-    bMao,
     h('button', { class: 'botao pequeno icone', type: 'button', 'aria-label': 'Aproximar', onclick: () => vista.zoomMais() }, '＋'),
     h('button', { class: 'botao pequeno icone', type: 'button', 'aria-label': 'Afastar', onclick: () => vista.zoomMenos() }, '－'),
     h('button', { class: 'botao pequeno icone', type: 'button', 'aria-label': 'Ver tudo', onclick: () => vista.ajustar() }, '⤢'));
-  const centro = h('section', { class: 'cen-centro', 'aria-label': 'Tela do cenário' }, palco, faixaPincel, zoom);
+  const centro = h('section', { class: 'cen-centro', 'aria-label': 'Tela do cenário' }, palco, ferramentasTela, faixaPincel, barraSelecao, zoom);
 
   const raiz = h('div', { class: 'cen-tela' },
     h('header', { class: 'topo cen-topo' },
@@ -372,9 +382,26 @@ async function montarConstrutor(el, { parametro, navegar, voltar }) {
       }, txt))));
   }
 
+  function desenharBarraSelecao(o, nome) {
+    barraSelecao.hidden = !o || !!pincel;
+    if (barraSelecao.hidden) return;
+    const alterar = (fn) => { registrar(foto()); fn(); mudou(); };
+    preencher(barraSelecao,
+      h('strong', { class: 'cen-selecao-nome' }, nome || '…'),
+      h('span', { class: 'cen-selecao-rotulo' }, 'Nível'),
+      NIVEIS.map((n) => h('button', {
+        class: 'segmento', type: 'button', 'aria-pressed': String(o.nivel === n.nivel), title: `Nível ${n.nivel} · ${n.nome}`,
+        onclick: () => { if (o.nivel !== n.nivel) alterar(() => mudarNivel(cen, o.id, n.nivel)); },
+      }, `${n.nivel} ${n.nome}`)),
+      h('button', { class: 'botao pequeno', type: 'button', title: 'Duplicar (Ctrl+D)', onclick: () => duplicar(o) }, '⧉'),
+      h('button', { class: 'botao pequeno perigo', type: 'button', onclick: () => remover(o) }, '🗑 Apagar'),
+      h('button', { class: 'botao pequeno', type: 'button', 'aria-label': 'Tirar a seleção', title: 'Tirar a seleção (Esc)', onclick: () => { selecionado = null; desenharInfo(); vista.desenhar(); } }, '✕'));
+  }
+
   async function desenharInfo() {
     const o = selecionado && cen.objetos.find((x) => x.id === selecionado);
-    if (!o) { desenharInfoCenario(); return; }
+    if (!o) { desenharBarraSelecao(null); desenharInfoCenario(); return; }
+    desenharBarraSelecao(o, (await estadoDoSprite(o.spriteId))?.nome);
     const s = await estadoDoSprite(o.spriteId);
     if (selecionado !== o.id) return; // mudou enquanto carregava
     const alterar = (fn) => { registrar(foto()); fn(); mudou(); };
@@ -394,13 +421,7 @@ async function montarConstrutor(el, { parametro, navegar, voltar }) {
         h('label', { class: 'campo-rotulo', htmlFor: 'cen-quadro' }, 'Frame'),
         h('select', { class: 'campo', id: 'cen-quadro', onchange: (e) => alterar(() => { o.quadro = Number(e.target.value); }) },
           Array.from({ length: total }, (_, q) => h('option', { value: q, selected: q === o.quadro }, `Frame ${q + 1} de ${total}`)))),
-      seg('Nível (profundidade)', NIVEIS.map((n) => [n.nivel, `${n.nivel} · ${n.nome}`]), o.nivel, (v) => alterar(() => {
-        // muda de nível indo para cima de todos os daquele nível
-        const i = cen.objetos.indexOf(o);
-        cen.objetos.splice(i, 1);
-        o.nivel = v;
-        cen.objetos.push(o);
-      })),
+      seg('Nível (profundidade)', NIVEIS.map((n) => [n.nivel, `${n.nivel} · ${n.nome}`]), o.nivel, (v) => alterar(() => mudarNivel(cen, o.id, v))),
       h('p', { class: 'dica pequena' }, `É o ${posNoNivel}º de ${mesmoNivel.length} no nível ${o.nivel}. Nível 3 fica na frente do 2, que fica na frente do 1.`),
       seg('Tipo', [[false, 'Decoração'], [true, 'Sólido (colide)']], o.solido, (v) => alterar(() => { o.solido = v; })),
       h('div', { class: 'cen-campo cen-posicao' },
@@ -485,7 +506,7 @@ async function montarConstrutor(el, { parametro, navegar, voltar }) {
     if (k === 'Delete' || k === 'Backspace') { ev.preventDefault(); remover(o); return; }
     if (['1', '2', '3'].includes(k)) {
       registrar(foto());
-      const i = cen.objetos.indexOf(o); cen.objetos.splice(i, 1); o.nivel = Number(k); cen.objetos.push(o);
+      mudarNivel(cen, o.id, Number(k));
       mudou(); return;
     }
     const passo = ev.shiftKey ? 1 : cen.grade;

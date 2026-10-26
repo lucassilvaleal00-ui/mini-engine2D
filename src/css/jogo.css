@@ -190,3 +190,12 @@
   .cen-info { right: 0; }
   .cen-tela.mostra-arquivos .cen-arquivos, .cen-tela.mostra-info .cen-info { display: flex; }
 }
+.cen-ferramentas { position: absolute; left: 8px; bottom: 8px; z-index: 2; display: flex; gap: 6px; }
+.cen-ferramentas .botao[aria-pressed="true"] { color: var(--acento-texto); background: var(--acento); border-color: #ffd08f; }
+.cen-selecao {
+  position: absolute; left: 8px; right: 8px; top: 8px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 10px; font-size: .85rem; background: rgba(27, 30, 48, .94); border: 2px solid var(--acento); border-radius: 8px;
+}
+.cen-selecao .segmento { min-height: 34px; padding: 2px 8px; font-size: .8rem; }
+.cen-selecao-nome { max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cen-selecao-rotulo { color: var(--suave); margin-left: 4px; }

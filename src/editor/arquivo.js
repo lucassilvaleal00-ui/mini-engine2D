@@ -188,11 +188,38 @@ export async function salvarDesenho({ estado, base, pastaId, origem, referencia 
 /* Rascunho (protege contra fechar/sair sem salvar)                    */
 /* ------------------------------------------------------------------ */
 
-const CHAVE_RASCUNHO = 'editor.rascunho';
+// Vários rascunhos (um por desenho em edição), do mais novo ao mais velho. O formato antigo
+// (um rascunho só, chave 'editor.rascunho') é convertido na primeira leitura.
+const CHAVE_RASCUNHO_ANTIGO = 'editor.rascunho';
+const CHAVE_RASCUNHOS = 'editor.rascunhos';
+export const MAX_RASCUNHOS = 10;
 
-export const guardarRascunho = (estado, origem, referencia = null) => gravarMeta(CHAVE_RASCUNHO, { versao: 1, em: Date.now(), estado, origem, referencia });
-export const lerRascunho = () => lerMeta(CHAVE_RASCUNHO, null);
-export const apagarRascunho = () => gravarMeta(CHAVE_RASCUNHO, null);
+/** [{ id, versao, em, estado, origem, referencia }] do mais recente ao mais antigo. */
+export async function lerRascunhos() {
+  let lista = await lerMeta(CHAVE_RASCUNHOS, null);
+  if (!Array.isArray(lista)) {
+    const velho = await lerMeta(CHAVE_RASCUNHO_ANTIGO, null);
+    lista = velho?.estado ? [{ ...velho, id: 'antigo' }] : [];
+    await gravarMeta(CHAVE_RASCUNHOS, lista);
+    await gravarMeta(CHAVE_RASCUNHO_ANTIGO, null);
+  }
+  return lista.filter((r) => r?.estado).sort((a, b) => b.em - a.em);
+}
+
+/** Guarda (ou atualiza) o rascunho `id`. Passando de 10, o mais antigo sai. */
+export async function guardarRascunho(id, estado, origem, referencia = null) {
+  const lista = (await lerRascunhos()).filter((r) => r.id !== id);
+  lista.unshift({ id, versao: 1, em: Date.now(), estado, origem, referencia });
+  await gravarMeta(CHAVE_RASCUNHOS, lista.slice(0, MAX_RASCUNHOS));
+}
+
+export async function apagarRascunho(id) {
+  const lista = await lerRascunhos();
+  await gravarMeta(CHAVE_RASCUNHOS, lista.filter((r) => r.id !== id));
+}
+
+/** O rascunho mais recente (ou null). */
+export const lerRascunho = async () => (await lerRascunhos())[0] ?? null;
 export const ultimaPasta = async () => {
   const id = await lerMeta('editor.ultimaPasta', RAIZ).catch(() => RAIZ);
   if (id === RAIZ) return RAIZ;

@@ -583,6 +583,8 @@ textarea.campo { padding-top: 10px; padding-bottom: 10px; }
   .editor-topo { gap: 4px; padding: 6px; }
   .editor-topo .botao.icone { min-width: 38px; padding: 0 6px; }
   .editor-topo .botao.primario { padding: 0 10px; }
+  .editor-topo .botao.primario .rotulo { display: none; } /* Salvar vira só o ícone: sobra espaço para o nome */
+  .editor-topo .botao.icone { min-width: 34px; padding: 0 4px; }
   .editor-titulo { font-size: .85rem; gap: 4px; }
   .quadros-info { display: none; }
 }
@@ -601,3 +603,4 @@ textarea.campo { padding-top: 10px; padding-bottom: 10px; }
 .vista-canvas.mao-livre { cursor: grab; }
 .vista-canvas.arrastando, .ref-canvas.arrastando { cursor: grabbing; }
 .ia-modelo { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 8px 0 4px; }
+.tamanho-atual { min-width: 3.4em; text-align: center; font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--suave); }
