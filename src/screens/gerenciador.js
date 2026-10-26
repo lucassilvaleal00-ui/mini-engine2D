@@ -10,6 +10,11 @@ import { aviso, avisarErro, mensagemDeErro } from '../ui/toast.js';
 import { confirmar, pedirTexto, escolherPasta, menuAcoes } from '../ui/dialogos.js';
 import { formatarDataHora, pluralizar } from '../ui/formato.js';
 import { RAIZ, TIPOS, rotaDoItem } from '../core/tipos.js';
+import { miniaturaDoItem } from '../ui/miniaturas.js';
+
+const CHAVE_VISTA = 'miniengine.gerenciador.vista';
+const lerVista = () => { try { return localStorage.getItem(CHAVE_VISTA) === 'blocos' ? 'blocos' : 'lista'; } catch { return 'lista'; } };
+const gravarVista = (v) => { try { localStorage.setItem(CHAVE_VISTA, v); } catch { /* sem armazenamento: tudo bem */ } };
 import * as armazem from '../core/storage.js';
 
 /** Converte "executa e devolve erro como texto" no formato esperado pelos diálogos. */
@@ -33,7 +38,18 @@ export async function montar(el, { parametro, navegar }) {
   document.title = 'Gerenciador · Mini Engine';
 
   /* ---------- Estrutura fixa da tela ---------- */
-  const lista = h('ul', { class: 'lista' });
+  let vista = lerVista();
+  const lista = h('ul', { class: `lista${vista === 'blocos' ? ' blocos' : ''}` });
+  const botoesVista = h('div', { class: 'grupo-segmentos vista-botoes', role: 'group', 'aria-label': 'Ver como' },
+    [['lista', '☰ Lista'], ['blocos', '▦ Blocos']].map(([v, rotulo]) => h('button', {
+      class: 'segmento', type: 'button', 'data-vista': v, 'aria-pressed': String(v === vista),
+      onclick: () => {
+        vista = v;
+        gravarVista(v);
+        lista.classList.toggle('blocos', v === 'blocos');
+        for (const b of botoesVista.children) b.setAttribute('aria-pressed', String(b.dataset.vista === v));
+      },
+    }, rotulo)));
   const vazio = h('div', { class: 'vazio', hidden: true });
   const botaoLixeira = h('button', {
     class: 'botao', type: 'button', onclick: () => navegar('/lixeira'),
@@ -59,7 +75,9 @@ export async function montar(el, { parametro, navegar }) {
       botaoLixeira),
     h('nav', { class: 'migalhas', 'aria-label': 'Caminho' }, trilha),
     h('div', { class: 'barra-acoes' },
-      h('button', { class: 'botao primario', type: 'button', onclick: () => novaPasta() }, '＋ Nova pasta')),
+      h('button', { class: 'botao primario', type: 'button', onclick: () => novaPasta() }, '＋ Nova pasta'),
+      h('span', { class: 'espaco' }),
+      botoesVista),
     lista,
     vazio,
   );
@@ -90,13 +108,21 @@ export async function montar(el, { parametro, navegar }) {
       ? (item.qtd ? pluralizar(item.qtd, 'item', 'itens') : 'vazia')
       : [tipo.rotulo, item.resumo?.descricao, `editado ${formatarDataHora(item.atualizadoEm)}`].filter(Boolean).join(' · ');
 
+    // ícone agora; a miniatura (1º frame, capa do jogo…) entra quando ficar pronta
+    const icone = h('span', { class: 'linha-icone', 'aria-hidden': 'true' }, tipo.icone);
+    miniaturaDoItem(item).then((src) => {
+      if (!src) return;
+      icone.classList.add('com-imagem');
+      icone.replaceChildren(h('img', { src, alt: '' }));
+    });
+
     return h('li', { class: `linha ${item.tipo}` },
       h('button', {
         class: 'linha-principal',
         type: 'button',
         onclick: () => navegar(rotaDoItem(item)),
       },
-      h('span', { class: 'linha-icone', 'aria-hidden': 'true' }, tipo.icone),
+      icone,
       h('span', { class: 'linha-textos' },
         h('span', { class: 'linha-nome' }, item.nome),
         h('span', { class: 'linha-meta' }, meta))),

@@ -5,7 +5,7 @@
 import { h, preencher } from '../ui/dom.js';
 import { abrirDialogo } from '../ui/dialogos.js';
 import {
-  PROVEDORES, lerChave, gravarChave, modeloEscolhido, escolherModelo, listarModelos,
+  PROVEDORES, OUTRAS_CHAVES, lerChave, gravarChave, modeloEscolhido, escolherModelo, listarModelos, testarPixelLab,
 } from '../core/ia.js';
 
 /** Nome curto para o botão: "Gemini · gemini-2.5-flash" */
@@ -23,6 +23,36 @@ export function dialogoModelo() {
     const abas = h('div', { class: 'grupo-segmentos', role: 'group', 'aria-label': 'Provedor' });
     const corpo = h('div', { class: 'ia-config' });
     const erro = h('p', { class: 'campo-erro', role: 'alert', hidden: true });
+    const outras = h('details', { class: 'ia-outras' });
+
+    function desenharOutras() {
+      const p = OUTRAS_CHAVES.pixellab;
+      const campo = h('input', {
+        class: 'campo', id: 'pixellab-chave', type: 'password', autocomplete: 'off', spellcheck: false,
+        placeholder: lerChave('pixellab') ? 'chave guardada (cole outra para trocar)' : 'cole o API token aqui',
+      });
+      const status = h('p', { class: 'dica pequena', role: 'status' });
+      preencher(outras,
+        h('summary', {}, `Chave da PixelLab (gerar pixel art)${lerChave('pixellab') ? ' ✓' : ''}`),
+        h('p', { class: 'dica pequena' }, p.dica, ' ', h('a', { href: p.ondePegar, target: '_blank', rel: 'noopener' }, 'Pegar a chave ↗')),
+        h('div', { class: 'ia-linha' }, campo,
+          h('button', {
+            class: 'botao pequeno', type: 'button',
+            onclick: async () => {
+              if (campo.value.trim()) gravarChave('pixellab', campo.value);
+              if (!lerChave('pixellab')) { status.textContent = 'Cole a chave no campo.'; return; }
+              status.textContent = 'Testando…';
+              const r = await testarPixelLab();
+              desenharOutras();
+              outras.open = true;
+              outras.querySelector('[role=status]').textContent = r.texto;
+            },
+          }, 'Salvar e testar')),
+        lerChave('pixellab') && h('button', { class: 'link', type: 'button', onclick: () => { gravarChave('pixellab', ''); desenharOutras(); outras.open = true; } }, 'Apagar a chave da PixelLab deste aparelho'),
+        status,
+        h('p', { class: 'dica pequena' }, 'Fica só neste aparelho, como as outras chaves. Ela será usada pelo “Solicitar IA” dos sprites.'));
+    }
+    desenharOutras();
 
     function desenhar() {
       preencher(abas, Object.entries(PROVEDORES).map(([id, p]) => h('button', {
@@ -115,6 +145,7 @@ export function dialogoModelo() {
       h('p', { class: 'dialogo-sub' }, 'Escolha quem programa o jogo.'),
       abas,
       corpo,
+      outras,
       erro,
       h('div', { class: 'dialogo-botoes fixo' },
         h('button', { class: 'botao', type: 'button', onclick: () => fechar(null) }, 'Cancelar'),

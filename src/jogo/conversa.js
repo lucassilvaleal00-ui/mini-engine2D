@@ -16,7 +16,7 @@ AMBIENTE DO JOGO (já pronto, não recrie):
 - O Phaser 3.90 já está carregado como a variável global \`Phaser\`. Não use import, require, módulos, fetch nem links externos (não há internet no jogo).
 - Existe um <div id="jogo"> que ocupa a área de teste inteira. Use \`parent: 'jogo'\` e
   \`scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }\`, \`pixelArt: true\`.
-- Os sprites chamados pelo usuário com @ já vêm prontos: no \`preload()\` da primeira cena chame \`carregarAssets(this)\` e no \`create()\` chame \`criarAnimacoes(this)\`. Depois use as chaves listadas em ASSETS (ex.: \`this.add.sprite(x, y, 'heroi')\`, \`sprite.play('heroi')\` quando houver mais de 1 frame). A lista também existe em \`ASSETS.sprites\` (key, frameWidth, frameHeight, frames, fps). Cenários ficam em \`CENARIOS[key]\`.
+- Os sprites chamados pelo usuário com @ já vêm prontos: no \`preload()\` da primeira cena chame \`carregarAssets(this)\` e no \`create()\` chame \`criarAnimacoes(this)\`. Depois use as chaves listadas em ASSETS (ex.: \`this.add.sprite(x, y, 'heroi')\`, \`sprite.play('heroi')\` quando houver mais de 1 frame). A lista também existe em \`ASSETS.sprites\` (key, frameWidth, frameHeight, frames, fps). Cenários (chamados com @) entram com \`montarCenario(this, 'chave')\` no create(): desenha fundo/meio/frente (depth 10/20/30) e devolve largura, altura e os retângulos sólidos.
 - Arquivos .json que você criar ficam em \`DADOS['nome.json']\` (já convertidos em objeto).
 - Os .js são carregados em ordem alfabética e o \`main.js\` por último: ponha nele o \`new Phaser.Game(config)\`.
 - O jogo é para CELULAR primeiro: controles por toque (botões na tela, toque/arraste) e também teclado no PC.

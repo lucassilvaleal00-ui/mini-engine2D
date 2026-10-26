@@ -18,7 +18,7 @@ const CARTOES = [
     texto: 'Organize sprites, cenários e jogos em pastas e subpastas.',
   },
   {
-    rota: '/cenario', icone: '🗺️', titulo: 'Construção de cenário', pronto: false,
+    rota: '/cenario', icone: '🗺️', titulo: 'Construção de cenário', pronto: true,
     texto: 'Monte cenários com seus sprites e defina as camadas de profundidade.',
   },
   {
@@ -84,7 +84,7 @@ export async function montar(el, { navegar }) {
       botaoNuvem,
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/backup') }, '💾 Backup'),
       h('button', { class: 'link', type: 'button', onclick: () => navegar('/diagnostico') }, '🔧 Diagnóstico'),
-      h('span', {}, 'Etapa 6 · criar jogo')),
+      h('span', {}, 'Etapas 1–6 · cenário e jogo')),
   ]);
   return () => globalThis.removeEventListener('miniengine:nuvem', atualizarNuvem);
 }

@@ -468,3 +468,21 @@ h1:focus, h1:focus-visible { outline: none; }
 .nuvem-form .aviso-caixa { margin: 4px 0 0; }
 .nuvem-rodape[data-fase="erro"] { color: #ff8a8a; }
 .nuvem-rodape[data-fase="sem_rede"] { color: var(--acento); }
+
+/* ---------- Gerenciador: miniaturas e vista em blocos ---------- */
+.barra-acoes .espaco { flex: 1; }
+.vista-botoes .segmento { min-height: 44px; }
+.linha-icone.com-imagem {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none;
+  background: repeating-conic-gradient(#2c3042 0% 25%, #232636 0% 50%) 0 0 / 10px 10px; border-radius: 4px;
+}
+.linha-icone img { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.lista.blocos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.lista.blocos .linha { position: relative; flex-direction: column; }
+.lista.blocos .linha-principal { flex-direction: column; align-items: center; text-align: center; padding: 12px 8px 10px; gap: 8px; }
+.lista.blocos .linha-icone { width: 100%; height: 96px; font-size: 3rem; display: grid; place-items: center; }
+.lista.blocos .linha-icone.com-imagem { width: 96px; height: 96px; }
+.lista.blocos .linha-textos { align-items: center; width: 100%; }
+.lista.blocos .linha-nome { max-width: 100%; }
+.lista.blocos .linha-meta { font-size: .72rem; }
+.lista.blocos .linha-menu { position: absolute; top: 4px; right: 4px; width: 36px; height: 36px; min-height: 0; border: 0; }

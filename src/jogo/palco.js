@@ -25,7 +25,9 @@ export function montarHtmlDoJogo({ arquivos, assets, urlPhaser }) {
     try { dados[nome] = JSON.parse(texto); } catch { dados[nome] = null; }
   }
   const sprites = assets.sprites.map(({ key, url, frameWidth, frameHeight, frames, fps }) => ({ key, url, frameWidth, frameHeight, frames, fps }));
-  const cenarios = Object.fromEntries(assets.cenarios.map((c) => [c.key, c.dados]));
+  const cenarios = Object.fromEntries(assets.cenarios.map((c) => [c.key, {
+    largura: c.largura, altura: c.altura, grade: c.grade, niveis: c.niveis, objetos: c.objetos, solidos: c.solidos,
+  }]));
 
   return `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
@@ -86,6 +88,18 @@ export function montarHtmlDoJogo({ arquivos, assets, urlPhaser }) {
   window.DADOS = ${jsonSeguro(dados)};
   window.carregarAssets = function (cena) {
     ASSETS.sprites.forEach(function (s) { cena.load.spritesheet(s.key, s.url, { frameWidth: s.frameWidth, frameHeight: s.frameHeight }); });
+    Object.keys(CENARIOS).forEach(function (k) {
+      var n = CENARIOS[k].niveis || {};
+      Object.keys(n).forEach(function (nivel) { cena.load.image(k + '__nivel' + nivel, n[nivel]); });
+    });
+  };
+  window.montarCenario = function (cena, key) {
+    var c = CENARIOS[key];
+    if (!c) throw new Error('Cenário "' + key + '" não existe. Cenários disponíveis: ' + Object.keys(CENARIOS).join(', '));
+    Object.keys(c.niveis || {}).forEach(function (nivel) {
+      cena.add.image(0, 0, key + '__nivel' + nivel).setOrigin(0, 0).setDepth(Number(nivel) * 10);
+    });
+    return { largura: c.largura, altura: c.altura, grade: c.grade, solidos: c.solidos.slice(), objetos: c.objetos.slice() };
   };
   window.criarAnimacoes = function (cena) {
     ASSETS.sprites.forEach(function (s) {

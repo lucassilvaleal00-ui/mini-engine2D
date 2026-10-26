@@ -25,6 +25,30 @@ export const PROVEDORES = {
   },
 };
 
+/** Outras chaves (não são modelos de chat). A PixelLab gera pixel art; será usada pelo "Solicitar IA". */
+export const OUTRAS_CHAVES = {
+  pixellab: {
+    nome: 'PixelLab',
+    ondePegar: 'https://www.pixellab.ai/account',
+    dica: 'Gera pixel art (personagens, animações, tilesets). Entre em pixellab.ai, abra a sua conta (Account) e copie o API token. É paga por uso.',
+  },
+};
+
+/** Testa a chave da PixelLab pedindo o saldo. -> { ok, texto } (não lança). */
+export async function testarPixelLab() {
+  const chave = lerChave('pixellab');
+  if (!chave) return { ok: false, texto: 'Cole e salve a chave primeiro.' };
+  try {
+    const r = await chamar('https://api.pixellab.ai/v2/balance', { headers: { Authorization: `Bearer ${chave}` }, tempo: 20_000 });
+    if (r.status === 401 || r.status === 403) return { ok: false, texto: 'A PixelLab recusou a chave. Confira se copiou o token inteiro.' };
+    if (!r.ok) return { ok: false, texto: `A PixelLab respondeu com erro (${r.status}).` };
+    const saldo = r.corpo?.credits ?? r.corpo?.usd ?? r.corpo?.balance;
+    return { ok: true, texto: `Chave aceita pela PixelLab${saldo !== undefined ? ` (saldo: ${typeof saldo === 'object' ? JSON.stringify(saldo) : saldo})` : ''}.` };
+  } catch {
+    return { ok: false, texto: 'Não consegui falar com a PixelLab daqui (sem internet ou o navegador bloqueou). A chave ficou guardada mesmo assim.' };
+  }
+}
+
 const URL_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 const URL_OPENROUTER = 'https://openrouter.ai/api/v1';
 const CHAVE_LS = (p) => `miniengine.ia.chave.${p}`;
