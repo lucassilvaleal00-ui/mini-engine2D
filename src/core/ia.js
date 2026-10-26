@@ -160,8 +160,11 @@ export async function listarModelos(provedor) {
       provedor,
       id: m.id,
       nome: m.name || m.id,
-      gratis: String(m.pricing?.prompt) === '0' && String(m.pricing?.completion) === '0',
+      gratis: (String(m.pricing?.prompt) === '0' && String(m.pricing?.completion) === '0') || /:free$/.test(m.id),
       imagens: (m.architecture?.input_modalities || []).includes('image'),
+      contexto: Number(m.context_length) || 0,
+      criado: Number(m.created) || 0,
+      precoEntrada: Number(m.pricing?.prompt) || 0,
     }))
     .sort((a, b) => a.nome.localeCompare(b.nome));
 }

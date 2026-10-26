@@ -26,7 +26,7 @@ export function montarHtmlDoJogo({ arquivos, assets, urlPhaser }) {
   }
   const sprites = assets.sprites.map(({ key, url, frameWidth, frameHeight, frames, fps }) => ({ key, url, frameWidth, frameHeight, frames, fps }));
   const cenarios = Object.fromEntries(assets.cenarios.map((c) => [c.key, {
-    largura: c.largura, altura: c.altura, grade: c.grade, niveis: c.niveis, objetos: c.objetos, solidos: c.solidos,
+    largura: c.largura, altura: c.altura, grade: c.grade, niveis: c.niveis, objetos: c.objetos, solidos: c.solidos, mapa: c.mapa, celulaMapa: c.celulaMapa,
   }]));
 
   return `<!doctype html>
@@ -99,7 +99,34 @@ export function montarHtmlDoJogo({ arquivos, assets, urlPhaser }) {
     Object.keys(c.niveis || {}).forEach(function (nivel) {
       cena.add.image(0, 0, key + '__nivel' + nivel).setOrigin(0, 0).setDepth(Number(nivel) * 10);
     });
-    return { largura: c.largura, altura: c.altura, grade: c.grade, solidos: c.solidos.slice(), objetos: c.objetos.slice() };
+    // sólidos com física (se a cena tiver Arcade), mundo e câmera do tamanho do cenário
+    var grupo = null;
+    if (cena.physics && cena.physics.add) {
+      grupo = cena.physics.add.staticGroup();
+      c.solidos.forEach(function (s) {
+        var z = cena.add.zone(s.x + s.largura / 2, s.y + s.altura / 2, s.largura, s.altura);
+        cena.physics.add.existing(z, true);
+        grupo.add(z);
+      });
+      cena.physics.world.setBounds(0, 0, c.largura, c.altura);
+    } else {
+      console.warn('montarCenario: a cena não tem física Arcade (physics: { default: "arcade" }); os sólidos não vão colidir.');
+    }
+    cena.cameras.main.setBounds(0, 0, c.largura, c.altura);
+    var linhas = String(c.mapa || '').split('\\n');
+    return {
+      largura: c.largura, altura: c.altura, grade: c.grade,
+      solidos: c.solidos.slice(), objetos: c.objetos.slice(), grupoSolidos: grupo,
+      /** {x, y} no centro de uma célula vazia ("."), procurando a partir de baixo à esquerda */
+      pontoLivre: function () {
+        for (var y = linhas.length - 1; y >= 0; y--) for (var x = 0; x < linhas[y].length; x++) {
+          if (linhas[y][x] === '.' && (y + 1 >= linhas.length || linhas[y + 1][x] !== '.')) return { x: (x + 0.5) * c.celulaMapa, y: (y + 0.5) * c.celulaMapa };
+        }
+        return { x: c.largura / 2, y: c.altura / 2 };
+      },
+      /** objetos com esse nome (ex.: 'moeda') */
+      acharObjetos: function (nome) { return c.objetos.filter(function (o) { return o.nome.toLowerCase().indexOf(String(nome).toLowerCase()) >= 0; }); },
+    };
   };
   window.criarAnimacoes = function (cena) {
     ASSETS.sprites.forEach(function (s) {

@@ -24,6 +24,7 @@ import { montarAssets, descreverAssets } from '../jogo/assets.js';
 import { montarPedido, lerResposta, mensagemDeErro as pedidoDeCorrecao } from '../jogo/conversa.js';
 import { criarPalco, ordemDosScripts } from '../jogo/palco.js';
 import { dialogoModelo, rotuloDoModelo } from '../jogo/dialogo-modelo.js';
+import { excluirComDesfazer, cartaoComExcluir } from '../ui/excluir-item.js';
 
 const MAX_CORRECOES = 3;
 const ESPERA_ERROS_MS = 3500;
@@ -58,10 +59,11 @@ async function montarLista(el, { navegar, voltar }) {
       ...await Promise.all(projetos.map(async (p) => {
         const completo = await abrirProjeto(p.id).catch(() => null);
         const capa = completo?.projeto.capa;
-        return h('button', { class: 'projeto-cartao', type: 'button', onclick: () => navegar(`/jogo/${p.id}`) },
+        return cartaoComExcluir(h('button', { class: 'projeto-cartao', type: 'button', onclick: () => navegar(`/jogo/${p.id}`) },
           capa ? h('img', { class: 'projeto-capa', src: capa, alt: '' }) : h('span', { class: 'projeto-capa vazia', 'aria-hidden': 'true' }, '🎮'),
           h('span', { class: 'projeto-nome' }, p.nome),
-          h('small', { class: 'projeto-info' }, `${p.resumo?.descricao || ''} · ${formatarDataHora(p.atualizadoEm)}`));
+          h('small', { class: 'projeto-info' }, `${p.resumo?.descricao || ''} · ${formatarDataHora(p.atualizadoEm)}`)),
+        { rotulo: `o projeto ${p.nome}`, ao: () => excluirComDesfazer(p, { rotulo: 'o projeto', aoMudar: desenhar }) });
       })),
     ]);
   }
@@ -440,7 +442,7 @@ async function montarProjeto(el, { parametro, navegar, voltar }) {
     let mudouArquivos = false;
     try {
       const assets = await montarAssets(projeto.referencias, indice);
-      const pedido = montarPedido(projeto, { textoAssets: descreverAssets(assets), avisosAssets: assets.avisos, imagensAtuais: imagens.length ? imagens : null });
+      const pedido = montarPedido(projeto, { textoAssets: descreverAssets(assets, { cenariosNaoChamados: indice.cenarios.map((c) => c.nome).filter((n) => !assets.cenarios.some((a) => a.origem.toLowerCase().includes(n.toLowerCase()))) }), avisosAssets: assets.avisos, imagensAtuais: imagens.length ? imagens : null });
       cancelador = new AbortController();
       const modelo = modeloEscolhido();
       const resposta = await conversar({ modelo, sistema: pedido.sistema, mensagens: pedido.mensagens, sinal: cancelador.signal });

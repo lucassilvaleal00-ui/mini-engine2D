@@ -23,6 +23,7 @@ import {
 import { estadoDoSprite, frameDoSprite, comporCenario } from '../cenario/render.js';
 import { VistaCenario } from '../cenario/vista.js';
 import { miniaturaDoItem, registrarMiniaturaDeCenario, rgbaParaCanvas } from '../ui/miniaturas.js';
+import { excluirComDesfazer, cartaoComExcluir } from '../ui/excluir-item.js';
 
 const MAX_DESFAZER = 60;
 
@@ -60,10 +61,11 @@ async function montarLista(el, { navegar, voltar }) {
       ...lista.map((c) => {
         const capa = h('span', { class: 'projeto-capa vazia', 'aria-hidden': 'true' }, '🗺️');
         miniaturaDoItem(c).then((src) => { if (src) capa.replaceWith(h('img', { class: 'projeto-capa', src, alt: '' })); });
-        return h('button', { class: 'projeto-cartao', type: 'button', onclick: () => navegar(`/cenario/${c.id}`) },
+        return cartaoComExcluir(h('button', { class: 'projeto-cartao', type: 'button', onclick: () => navegar(`/cenario/${c.id}`) },
           capa,
           h('span', { class: 'projeto-nome' }, c.nome),
-          h('small', { class: 'projeto-info' }, `${c.resumo?.descricao || ''} · ${formatarDataHora(c.atualizadoEm)}`));
+          h('small', { class: 'projeto-info' }, `${c.resumo?.descricao || ''} · ${formatarDataHora(c.atualizadoEm)}`)),
+        { rotulo: `o cenário ${c.nome}`, ao: () => excluirComDesfazer(c, { rotulo: 'o cenário', aoMudar: desenhar }) });
       }),
     ]);
   }
@@ -205,7 +207,14 @@ async function montarConstrutor(el, { parametro, navegar, voltar }) {
       h('h1', { class: 'cen-titulo' }, cen.name),
       status,
       h('span', { class: 'espaco' }),
-      bArquivos, bDesfazer, bRefazer, bInfo),
+      bArquivos, bDesfazer, bRefazer, bInfo,
+      h('button', {
+        class: 'botao icone', type: 'button', 'aria-label': 'Excluir este cenário', title: 'Excluir este cenário',
+        onclick: async () => {
+          clearTimeout(relogioSalvar);
+          if (await excluirComDesfazer({ id, nome: cen.name }, { rotulo: 'o cenário' })) { status.dataset.estado = ''; navegar('/cenario', { substituir: true }); }
+        },
+      }, '🗑')),
     h('div', { class: 'cen-corpo' }, painelArquivos, centro, painelInfo));
   el.append(raiz);
 

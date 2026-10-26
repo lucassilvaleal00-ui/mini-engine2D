@@ -60,8 +60,64 @@ async function assetDoCenario(id, item) {
   }
   const objetos = await objetosComTamanho(c);
   const asset = { largura: larguraPx(c), altura: alturaPx(c), grade: c.grade, niveis, objetos, solidos: objetos.filter((o) => o.solido).map(({ x, y, largura, altura }) => ({ x, y, largura, altura })) };
+  Object.assign(asset, mapaDoCenario(c, objetos));
   cache.set(marca, asset);
   return asset;
+}
+
+/**
+ * Mapa em texto do cenário (para a IA "enxergar" onde está cada coisa): uma letra por célula da grade.
+ * Maiúscula = sólido (colide), minúscula = decoração, "." = vazio. Mostra o objeto de cima em cada célula.
+ * Se o cenário for grande, cada caractere junta várias células (até 64 colunas × 48 linhas).
+ */
+export function mapaDoCenario(c, objetos) {
+  const fator = Math.max(1, Math.ceil(c.colunas / 64), Math.ceil(c.linhas / 48));
+  const passo = c.grade * fator;
+  const cols = Math.ceil(c.colunas / fator);
+  const lins = Math.ceil(c.linhas / fator);
+  const grade = Array.from({ length: lins }, () => Array(cols).fill('.'));
+  const letras = new Map();
+  const legenda = [];
+  const letraDe = (o) => {
+    const k = `${o.nome}|${o.solido}`;
+    if (!letras.has(k)) {
+      const usadas = new Set([...letras.values()].map((l) => l.toLowerCase()));
+      let l = [...o.nome.normalize('NFD').replace(/[^a-zA-Z]/g, '').toLowerCase()].find((ch) => !usadas.has(ch))
+        || [...'abcdefghijklmnopqrstuvwxyz'].find((ch) => !usadas.has(ch)) || '?';
+      if (o.solido) l = l.toUpperCase();
+      letras.set(k, l);
+      legenda.push(`${l} = ${o.nome} (${o.solido ? 'SÓLIDO, colide' : 'decoração, passa por cima/por trás'}, nível ${o.nivel})`);
+    }
+    return letras.get(k);
+  };
+  // objetos já vêm na ordem de desenho (fundo → frente): o último que cobre a célula fica
+  for (const o of objetos) {
+    const l = letraDe(o);
+    const x0 = Math.max(0, Math.floor(o.x / passo)), x1 = Math.min(cols - 1, Math.floor((o.x + o.largura - 1) / passo));
+    const y0 = Math.max(0, Math.floor(o.y / passo)), y1 = Math.min(lins - 1, Math.floor((o.y + o.altura - 1) / passo));
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      // sólido ganha da decoração na mesma célula (o importante para o jogo é saber onde não dá para passar)
+      if (grade[y][x] === '.' || o.solido || grade[y][x] === grade[y][x].toLowerCase()) grade[y][x] = l;
+    }
+  }
+  return {
+    mapa: grade.map((linha) => linha.join('')).join('\n'),
+    legenda,
+    celulaMapa: passo,
+  };
+}
+
+/** Lista dos objetos agrupados por nome, para a IA saber o que existe e onde (até 40 linhas). */
+function resumoDosObjetos(objetos) {
+  const porNome = new Map();
+  for (const o of objetos) {
+    if (!porNome.has(o.nome)) porNome.set(o.nome, []);
+    porNome.get(o.nome).push(o);
+  }
+  return [...porNome.entries()].slice(0, 40).map(([nome, lista]) => {
+    const pos = lista.slice(0, 8).map((o) => `(${o.x},${o.y})`).join(' ');
+    return `  • ${nome} ${lista[0].largura}x${lista[0].altura}px, ${lista.length}×, ${lista[0].solido ? 'sólido' : 'decoração'}, nível ${lista[0].nivel}: ${pos}${lista.length > 8 ? ' …' : ''}`;
+  }).join('\n');
 }
 
 /**
@@ -114,11 +170,23 @@ export async function montarAssets(referencias, indice) {
 }
 
 /** Texto curto que a IA recebe sobre os assets (sem as imagens). */
-export function descreverAssets({ sprites, cenarios }) {
-  if (!sprites.length && !cenarios.length) return 'Nenhum asset chamado ainda. Se o jogo precisar de imagens, use formas simples do Phaser (retângulos, círculos) e liste em PENDENCIAS os sprites que faltam.';
+export function descreverAssets({ sprites, cenarios }, { cenariosNaoChamados = [] } = {}) {
+  const extra = cenariosNaoChamados.length
+    ? `\n(Existem também os cenários ${cenariosNaoChamados.map((n) => `"${n}"`).join(', ')}, que NÃO foram chamados com @. Se o usuário falar de um deles, peça para ele escrever @nome no chat; não invente o cenário.)`
+    : '';
+  if (!sprites.length && !cenarios.length) return `Nenhum asset chamado ainda. Se o jogo precisar de imagens, use formas simples do Phaser (retângulos, círculos) e liste em PENDENCIAS os sprites que faltam.${extra}`;
   const linhas = sprites.map((s) => `- spritesheet "${s.key}" (de ${s.origem}${s.caminho ? `, pasta ${s.caminho}` : ''}): frames de ${s.frameWidth}x${s.frameHeight}px, ${s.frames} frame(s), ${s.fps} fps, camadas: ${s.camadas.join(', ')}${s.frames > 1 ? `; animação pronta "${s.key}"` : ''}`);
   for (const c of cenarios) {
-    linhas.push(`- cenário "${c.key}" (de ${c.origem}): ${c.largura}x${c.altura}px, grade ${c.grade}px, ${c.objetos.length} objetos, ${c.solidos.length} sólidos. Use \`const cen = montarCenario(this, '${c.key}')\` no create(): desenha os níveis (depth 10 fundo, 20 meio, 30 frente) e devolve { largura, altura, solidos: [{x,y,largura,altura}], objetos }. Ponha o jogador em depth 25 para passar atrás da frente. Para colisão, crie corpos estáticos nos retângulos de cen.solidos.`);
+    linhas.push(`- CENÁRIO "${c.key}" (de ${c.origem}) — o mundo do jogo tem ${c.largura}x${c.altura}px (grade de ${c.grade}px).
+  Use no create(): \`const cen = montarCenario(this, '${c.key}');\` Isso desenha o cenário PRONTO (fundo depth 10, meio 20, frente 30), cria os sólidos com física Arcade em \`cen.grupoSolidos\` e ajusta os limites do mundo e da câmera ao tamanho do cenário.
+  Depois: jogador com física (\`this.physics.add.sprite\`), \`this.physics.add.collider(jogador, cen.grupoSolidos)\`, \`jogador.setDepth(25)\` (passa atrás da frente) e \`this.cameras.main.startFollow(jogador)\`.
+  Pontos livres para começar: \`cen.pontoLivre()\` devolve {x, y} de uma célula vazia (ou escolha pelo mapa abaixo).
+  MAPA (cada caractere = ${c.celulaMapa}x${c.celulaMapa}px; linha 1 = topo; maiúscula = sólido, minúscula = decoração, . = vazio):
+${c.mapa.split('\n').map((l) => `    ${l}`).join('\n')}
+  LEGENDA:
+${c.legenda.map((l) => `    ${l}`).join('\n')}
+  OBJETOS (canto de cima à esquerda, em px):
+${resumoDosObjetos(c.objetos)}`);
   }
-  return linhas.join('\n');
+  return linhas.join('\n') + extra;
 }

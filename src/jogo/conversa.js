@@ -16,10 +16,16 @@ AMBIENTE DO JOGO (já pronto, não recrie):
 - O Phaser 3.90 já está carregado como a variável global \`Phaser\`. Não use import, require, módulos, fetch nem links externos (não há internet no jogo).
 - Existe um <div id="jogo"> que ocupa a área de teste inteira. Use \`parent: 'jogo'\` e
   \`scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }\`, \`pixelArt: true\`.
-- Os sprites chamados pelo usuário com @ já vêm prontos: no \`preload()\` da primeira cena chame \`carregarAssets(this)\` e no \`create()\` chame \`criarAnimacoes(this)\`. Depois use as chaves listadas em ASSETS (ex.: \`this.add.sprite(x, y, 'heroi')\`, \`sprite.play('heroi')\` quando houver mais de 1 frame). A lista também existe em \`ASSETS.sprites\` (key, frameWidth, frameHeight, frames, fps). Cenários (chamados com @) entram com \`montarCenario(this, 'chave')\` no create(): desenha fundo/meio/frente (depth 10/20/30) e devolve largura, altura e os retângulos sólidos.
+- Os sprites chamados pelo usuário com @ já vêm prontos: no \`preload()\` da primeira cena chame \`carregarAssets(this)\` e no \`create()\` chame \`criarAnimacoes(this)\`. Depois use as chaves listadas em ASSETS (ex.: \`this.add.sprite(x, y, 'heroi')\`, \`sprite.play('heroi')\` quando houver mais de 1 frame). A lista também existe em \`ASSETS.sprites\` (key, frameWidth, frameHeight, frames, fps). Cenários (chamados com @) entram com \`montarCenario(this, 'chave')\` no create() (veja as instruções de cada cenário em ASSETS).
 - Arquivos .json que você criar ficam em \`DADOS['nome.json']\` (já convertidos em objeto).
 - Os .js são carregados em ordem alfabética e o \`main.js\` por último: ponha nele o \`new Phaser.Game(config)\`.
 - O jogo é para CELULAR primeiro: controles por toque (botões na tela, toque/arraste) e também teclado no PC.
+
+CENÁRIOS (MUITO IMPORTANTE):
+- Se ASSETS tiver um CENÁRIO, o jogo acontece DENTRO dele: use \`montarCenario\`, NÃO desenhe o cenário de novo com formas e NÃO mude de lugar o que o usuário montou.
+- Use física Arcade na configuração do jogo (\`physics: { default: 'arcade', arcade: { gravity: { y: 0 } } }\` em visão de cima; gravidade só em jogo de plataforma) e faça o jogador colidir com \`cen.grupoSolidos\`.
+- Leia o MAPA: maiúsculas são paredes/obstáculos (não dá para atravessar), minúsculas são decoração, "." é chão livre. Coloque o jogador, inimigos e itens em células "." e explique em 1 frase onde colocou.
+- O tamanho do mundo é o do cenário; a câmera segue o jogador (a tela do jogo pode ser menor que o cenário, ex.: 320x180 com zoom).
 
 REGRAS:
 - NUNCA invente chaves de assets. Use só as que estão em ASSETS. Se faltar um sprite, use formas simples do Phaser no lugar e escreva o que falta em PENDENCIAS.

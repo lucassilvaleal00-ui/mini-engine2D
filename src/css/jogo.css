@@ -199,3 +199,35 @@
 .cen-selecao .segmento { min-height: 34px; padding: 2px 8px; font-size: .8rem; }
 .cen-selecao-nome { max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cen-selecao-rotulo { color: var(--suave); margin-left: 4px; }
+
+/* ---------- Modelo IA (abas, recomendados, testar) ---------- */
+.ia-abas { margin: 8px 0 4px; }
+.ia-abas .segmento { flex: 1; }
+.ia-chave-ok { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 10px; background: rgba(125, 220, 138, .1); border-radius: 6px; }
+.ia-modelos { display: flex; flex-direction: column; gap: 8px; }
+.ia-modelo-cartao { display: flex; flex-direction: column; gap: 3px; padding: 10px; background: var(--painel-2); border: 2px solid var(--borda); border-radius: 8px; cursor: pointer; }
+.ia-modelo-cartao:hover { border-color: var(--suave); }
+.ia-modelo-cartao.marcado { border-color: var(--acento); background: rgba(255, 180, 84, .1); }
+.ia-modelo-cartao .dica { margin: 2px 0; }
+.ia-modelos.compacto .ia-modelo-cartao { padding: 6px 10px; }
+.ia-modelo-topo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ia-papel { font: 700 .72rem var(--fonte-pixel); text-transform: uppercase; letter-spacing: .04em; color: var(--acento); }
+.selo-ia { padding: 0 7px; font-size: .7rem; border-radius: 9px; background: rgba(125, 220, 138, .16); color: var(--ok); }
+.selo-ia.pago { background: rgba(255, 180, 84, .16); color: var(--acento); }
+.ia-modelo-nome { overflow-wrap: anywhere; }
+.ia-modelo-id { font-size: .72rem; color: var(--suave); overflow-wrap: anywhere; }
+.ia-modelo-rodape { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.ia-teste { color: var(--suave); font-size: .76rem; }
+.ia-teste.ok { color: var(--ok); }
+.ia-teste.falhou { color: #ff8a8a; }
+.ia-todos summary, .ia-ajuda summary { cursor: pointer; color: var(--suave); font-size: .88rem; margin: 6px 0; }
+.ia-busca { margin: 6px 0 8px; }
+.ia-busca .campo { width: 100%; }
+.projeto-item { position: relative; display: flex; }
+.projeto-item > .projeto-cartao { flex: 1; }
+.projeto-excluir {
+  position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; padding: 0; font-size: .95rem; cursor: pointer;
+  color: var(--suave); background: var(--painel-2); border: 2px solid var(--borda); border-radius: 6px;
+}
+.projeto-excluir:hover { color: #fff; border-color: var(--perigo); background: rgba(255, 107, 107, .2); }
+.ia-chave-ok .link { min-height: 0; padding: 0; }
