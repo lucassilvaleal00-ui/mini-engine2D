@@ -1,9 +1,0 @@
-{
-  "phaser": {
-    "versao": "3.90.0",
-    "arquivo": "phaser.min.js",
-    "origem": "npm pack phaser@3.90.0 -> package/dist/phaser.min.js",
-    "licenca": "MIT (ver PHASER-LICENSE.md)",
-    "sha256": "e92ddef111ba42e92d316979c732311757093688ea1810591cb7aa2858eba7a7"
-  }
-}
