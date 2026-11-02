@@ -132,11 +132,12 @@
 .editor-centro {
   flex: 1;
   display: flex;
-  flex-direction: column;   /* celular: imagem de inspiração em cima, desenho embaixo */
+  flex-direction: row;      /* tela de criação | imagem de inspiração, lado a lado (ferramentas embaixo) */
   min-width: 0;
   min-height: 0;
 }
 .editor-canvas {
+  order: 1;
   position: relative;
   flex: 1;
   min-width: 0;
@@ -183,12 +184,14 @@
   display: flex;
   flex-direction: column;
   flex: none;
-  height: calc(var(--ref-tam, .38) * 100%);
-  min-height: 150px;
+  order: 2;
+  width: calc(var(--ref-tam, .5) * 100%);
+  min-width: 120px;
   background: var(--painel);
-  border-bottom: 2px solid var(--borda);
+  border-left: 2px solid var(--borda);
   overflow: hidden;
 }
+.painel-ref[hidden] { display: none; }
 .ref-topo {
   display: flex;
   align-items: center;
@@ -236,8 +239,9 @@
 
 /* No celular as abas laterais ficam por cima das bordas: dá espaço para elas. */
 @media (max-width: 899px) {
-  .ref-topo { padding-left: 46px; padding-right: 46px; }
-  .ref-dica { padding-left: 46px; padding-right: 46px; }
+  .ref-topo { padding-right: 46px; flex-wrap: wrap; }
+  .ref-dica { padding-right: 46px; }
+  .ref-vazio { padding-right: 46px; }
 }
 
 /* ---------- Gavetas retráteis (esquerda: Cores · direita: Chamar IA) ---------- */
@@ -308,17 +312,7 @@
 
 /* Em telas largas as gavetas empurram o canvas em vez de cobri-lo. */
 @media (min-width: 900px) {
-  /* computador: a imagem fica AO LADO do desenho */
-  .editor-centro { flex-direction: row; }
-  .painel-ref {
-    order: 2;
-    height: auto;
-    width: calc(var(--ref-tam, .38) * 100%);
-    min-width: 280px;
-    border-bottom: 0;
-    border-left: 2px solid var(--borda);
-  }
-  .editor-canvas { order: 1; }
+  .painel-ref { min-width: 260px; }
   .gaveta { position: relative; max-width: none; transform: none; transition: none; }
   .gaveta:not(.aberta) { width: 40px; }
   .gaveta:not(.aberta) .gaveta-corpo { display: none; }
@@ -580,6 +574,8 @@ textarea.campo { padding-top: 10px; padding-bottom: 10px; }
 @media (max-width: 480px) {
   .editor-titulo small { display: none; } /* o tamanho aparece na barra de status do desenho */
   .ref-topo strong { display: none; }
+  .ref-dica { display: none; }
+  .ref-cor { margin-left: 0; }
   .editor-topo { gap: 4px; padding: 6px; }
   .editor-topo .botao.icone { min-width: 38px; padding: 0 6px; }
   .editor-topo .botao.primario { padding: 0 10px; }
@@ -604,3 +600,46 @@ textarea.campo { padding-top: 10px; padding-bottom: 10px; }
 .vista-canvas.arrastando, .ref-canvas.arrastando { cursor: grabbing; }
 .ia-modelo { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 8px 0 4px; }
 .tamanho-atual { min-width: 3.4em; text-align: center; font-variant-numeric: tabular-nums; font-size: .85rem; color: var(--suave); }
+
+/* ---------- Transformar imagem ---------- */
+.dialogo:has(.transformar) { width: min(560px, calc(100vw - 24px)); }
+.transformar { display: flex; flex-direction: column; gap: 14px; }
+.tr-passo { display: flex; flex-direction: column; gap: 8px; }
+.tr-passo-titulo { display: flex; align-items: center; gap: 8px; margin: 0; font: 700 .9rem var(--fonte-pixel); letter-spacing: .02em; }
+.tr-numero {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none;
+  color: var(--acento-texto); background: var(--acento); border-radius: 50%; font-size: .75rem;
+}
+.tr-imagem { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.tr-imagem-info { display: flex; flex-direction: column; gap: 6px; }
+.tr-imagem-info .dica { margin: 0; overflow-wrap: anywhere; }
+.tr-previa {
+  display: flex; align-items: center; justify-content: center; padding: 8px;
+  background: var(--painel-2); border: 2px solid var(--borda); border-radius: 8px;
+}
+.tr-previa.xadrez {
+  background-color: #2a2d3a;
+  background-image: linear-gradient(45deg, #353948 25%, transparent 25%, transparent 75%, #353948 75%),
+    linear-gradient(45deg, #353948 25%, transparent 25%, transparent 75%, #353948 75%);
+  background-size: 16px 16px; background-position: 0 0, 8px 8px;
+}
+.tr-previa-canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+.tr-motores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tr-motor {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; padding: 8px 10px;
+  color: var(--texto); text-align: left; background: var(--painel-2); border: 2px solid var(--borda); border-radius: 8px; cursor: pointer;
+}
+.tr-motor small { color: var(--suave); font-size: .72rem; }
+.tr-motor:hover { border-color: var(--suave); }
+.tr-motor.marcado { border-color: var(--acento); background: rgba(255, 180, 84, .1); }
+.tr-check { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--suave); cursor: pointer; }
+.tr-check input { width: 18px; height: 18px; accent-color: var(--acento); }
+.tr-resumo { margin: 0; }
+.tr-status { margin: 0; color: var(--acento); }
+.tr-resultado .tr-previa { min-height: 120px; }
+.ia-transformar { margin-top: 4px; }
+.separador { width: 100%; margin: 6px 0; border: 0; border-top: 1px solid var(--borda); }
+@media (max-width: 480px) {
+  .tr-motores { grid-template-columns: 1fr; }
+  .tr-motor { min-height: 44px; flex-direction: row; align-items: center; justify-content: space-between; }
+}

@@ -106,6 +106,9 @@ function erroDaResposta(status, corpo) {
     return new ErroDaNuvem('sem_permissao', 'O Supabase recusou a gravação (regras de acesso). Confira se o SQL de criação rodou inteiro.', status);
   }
   if (status === 413) return new ErroDaNuvem('grande_demais', 'Um item é grande demais para enviar (provavelmente uma imagem de inspiração muito grande).', status);
+  if (/legacy api keys are disabled|invalid api key|no api key/i.test(original)) {
+    return new ErroDaNuvem('chave_invalida', 'O Supabase recusou a chave do app (anon public). Se você desativou as “Legacy API keys” ou gerou chaves novas no painel (Settings → API Keys), me mande a nova chave pública para eu colocar no app.', status);
+  }
   if (status === 401) return new ErroDaNuvem('nao_autorizado', 'Sua sessão expirou. Entre de novo.', status);
   if (status >= 500) return new ErroDaNuvem('servidor', `O Supabase está com problema agora (erro ${status}). Tente daqui a pouco. Se o projeto ficou parado mais de 7 dias, reative-o no painel do Supabase.`, status);
   return new ErroDaNuvem(codigo || 'erro', `Erro do Supabase (${status}): ${original || 'sem detalhes'}`, status);
@@ -138,6 +141,9 @@ async function chamar(caminho, { metodo = 'GET', corpo, token, cabecalhos = {} }
   if (!resposta.ok) throw erroDaResposta(resposta.status, dados);
   return dados;
 }
+
+/** Configurações públicas do login do projeto (não precisa de conta). Usado no teste de conexão. */
+export const lerConfiguracoesDoLogin = () => chamar('/auth/v1/settings');
 
 /* ---------- conta ---------- */
 

@@ -60,7 +60,7 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Conversas ligadas: cada pedido leva a memória do projeto, os arquivos atuais, os assets e os títulos das outras conversas; só as últimas 16 mensagens da conversa atual.
 - `@`: `@desenho`, `@pasta/`, `@desenho.camada`, `@cenário`, `@[nome com espaço]`; `@desenho:ação` aceita, mas usa o desenho inteiro até existirem ações (2b). Desenho = cadeia `base_NN`; vira spritesheet `key` + animação pronta. No jogo: `carregarAssets(this)` no preload e `criarAnimacoes(this)` no create; `ASSETS`, `CENARIOS`, `DADOS`.
 - Jogo em `<iframe sandbox="allow-scripts">` (srcdoc); cada .js vira um blob (erros com arquivo e linha); pausar/continuar por postMessage; correção automática até 3 vezes; versões com "Desfazer esta mudança".
-- O "Chamar IA" do editor já tem o botão Modelo IA (mesma escolha/chaves do Criar jogo). Imagens anexadas no chat: a IA recebe a versão até 1024 px; o projeto guarda só miniaturas (160 px).
+- O "Chamar IA" do editor tem o **Modelo IA do editor** (`miniengine.ia.modeloEditor`): PixelLab padrão; SpriteCook, Gemini e OpenRouter como opções. O Criar jogo só mostra Gemini e OpenRouter (`dialogoModelo({ modo: 'jogo' | 'editor' })`). As chaves são as mesmas (`miniengine.ia.chave.<provedor>`). Imagens anexadas no chat: a IA recebe a versão até 1024 px; o projeto guarda só miniaturas (160 px).
 - **Ainda falta da Etapa 5:** o "Solicitar IA" nos sprites (com o comando `aprimorar`, mostrar o resultado antes e entregar frame por frame), que vai reaproveitar o `core/ia.js`.
 
 ## Construção de cenário (já implementada, Etapa 4)
@@ -70,7 +70,10 @@ Você vai construir (ou continuar) o "Mini Engine": um site que roda 100% no nav
 - Desenho com vários frames → o app pergunta qual frame colocar. Arrastar respeita a profundidade ao vivo (pedido da Etapa 3, atendido). Salva sozinho; desfazer/refazer.
 - No Criar jogo: `@cenário` → uma imagem por nível + objetos/sólidos; `montarCenario(this, key)` (depth 10/20/30).
 - Gerenciador: miniaturas (`src/ui/miniaturas.js`) e vista Lista/Blocos (localStorage `miniengine.gerenciador.vista`).
-- Chave da PixelLab (`miniengine.ia.chave.pixellab`, teste em `GET https://api.pixellab.ai/v2/balance` com Bearer): guardada para o futuro "Solicitar IA".
+- Chaves das IAs de desenho: PixelLab (`miniengine.ia.chave.pixellab`, saldo em `GET https://api.pixellab.ai/v1/balance`) e SpriteCook (`miniengine.ia.chave.spritecook`, saldo em `GET https://api.spritecook.ai/v1/api/credits`), Bearer.
+- **Transformar imagem** (pedido do usuário, 01/11): sobe imagem → escolhe Mini Engine (sem IA) / PixelLab / SpriteCook → escala (16…128 ou manter) → perspectiva (isométrico, top down "de frente" ou nenhuma). Sem escala e sem perspectiva = a imagem exata, na grade, sem IA. Resultado sempre passa por `editor/pixelizar.js` (grade + paleta) e entra **num frame novo** (`ctl.inserirQuadroComArte`). PixelLab: `POST /v1/generate-image-pixflux` com `init_image` (32–400 px; menores são reduzidos por nós), `isometric`/`view`/`direction`. SpriteCook: `POST /v1/api/assets/import` → `POST /v1/api/generate-sync` com `edit_asset_id`, `pixel_perfect`, `bg_mode: transparent`. A "skill Sprite Sheet Creator" foi dispensada (o usuário permitiu): as regras de pixel art vão no texto do pedido e o acabamento é das ferramentas do editor.
+- **Login na abertura** (`screens/entrar.js`, guarda do roteador `guardaDeLogin`): sem sessão, toda rota vai para `#/entrar`; "Continuar sem entrar" vale até fechar a aba (`sessionStorage miniengine.semConta`). Tela Nuvem tem "Testar a conexão" (`testarConexao` em sincronia.js).
+- Imagem de inspiração: **ao lado** da tela de criação também no celular (desenho | inspiração; ferramentas embaixo), já aberta; esconder fica lembrado (`miniengine.editor.inspiracaoEscondida`).
 
 ## Pedidos do usuário para as próximas etapas (registrados na Etapa 3, ainda NÃO implementados)
 

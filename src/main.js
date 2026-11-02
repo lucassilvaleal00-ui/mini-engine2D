@@ -17,6 +17,8 @@ import * as nuvem from './screens/nuvem.js';
 import { iniciarSincronia } from './core/sincronia.js';
 import * as jogo from './screens/jogo.js';
 import * as cenario from './screens/cenario.js';
+import * as entrar from './screens/entrar.js';
+import { sessaoAtual } from './core/nuvem.js';
 
 // Mostra erros inesperados na tela (no celular ninguém vê o console).
 window.addEventListener('unhandledrejection', (e) => {
@@ -34,13 +36,21 @@ iniciarRoteador(document.getElementById('app'), {
   nuvem,
   cenario,
   jogo,
-});
+  entrar,
+}, { guarda: entrar.guardaDeLogin });
 
 // Sincronização com a nuvem (Supabase). Se não houver conta, fica desligada e nada acontece.
+let sessaoAvisada = false;
 window.addEventListener('miniengine:nuvem', (e) => {
   const conflitos = e.detail?.resumo?.conflitos || [];
   if (conflitos.length) {
     aviso(`Alterado nos dois aparelhos: ${conflitos.join(', ')}. A versão deste aparelho ficou ao lado com “(conflito)” no nome.`, { tipo: 'erro', duracao: 9000 });
   }
+  // a sessão venceu (ou foi desfeita no Supabase): avisa uma vez; a próxima tela aberta pede o login
+  if (e.detail?.fase === 'erro' && !sessaoAtual() && !sessaoAvisada) {
+    sessaoAvisada = true;
+    aviso(`${e.detail.erro || 'Sua sessão expirou.'} Entre de novo para voltar a sincronizar.`, { tipo: 'erro', duracao: 9000 });
+  }
+  if (sessaoAtual()) sessaoAvisada = false;
 });
 iniciarSincronia().catch((erro) => console.error('[nuvem]', erro));

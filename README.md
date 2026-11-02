@@ -2,7 +2,7 @@
 
 Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para criar sprites de pixel art, montar cenários e, nas próximas etapas, criar jogos 2D com ajuda de IA. Hospedado no GitHub Pages; os dados ficam no IndexedDB do navegador, sem backend.
 
-**Situação:** prontas as Etapas 1, 2a, 3, **4 (Construção de cenário)**, 5 (módulo de IA) e 6 (Criar jogo), mais a sincronização PC ↔ celular (Supabase). O Gerenciador ganhou miniaturas e a vista em blocos, e o Modelo IA ganhou o campo da chave da PixelLab. Ainda faltam o painel de camadas, a Etapa 2b (ações e propriedades), o "Solicitar IA" nos sprites e a Etapa 7 (entrega).
+**Situação:** prontas as Etapas 1, 2a, 3, **4 (Construção de cenário)**, 5 (módulo de IA) e 6 (Criar jogo), mais a sincronização PC ↔ celular (Supabase). O Gerenciador ganhou miniaturas e a vista em blocos; o app agora abre numa **tela de login**; o editor ganhou o **Transformar imagem** e a imagem de inspiração fica **ao lado** da tela de criação. Ainda faltam o painel de camadas, a Etapa 2b (ações e propriedades), o "Solicitar IA" nos sprites e a Etapa 7 (entrega).
 
 ## O que a Etapa 1 entrega
 
@@ -26,13 +26,13 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - **Salvar:** pede o nome (pode mudar) e a pasta (com **＋ Nova pasta** dentro do próprio diálogo). **Cada frame vira um arquivo separado**: `heroi_01`, `heroi_02`… (3 dígitos a partir de 100 frames). Se já existir arquivo com o mesmo nome na pasta, aparece um **aviso** e o botão passa a dizer *Substituir*. Salvar de novo o mesmo desenho atualiza os mesmos arquivos (sem aviso); se você tiver apagado frames, os arquivos que sobram vão para a lixeira.
 - **Abrir uma cadeia:** o editor junta `heroi_01`, `heroi_02`… em **um desenho só**. No Gerenciador, tocar em qualquer um deles abre o desenho inteiro. Arquivos com tamanho diferente do resto da cadeia ficam de fora (com aviso). Um sprite sem sufixo (como os de exemplo do Diagnóstico) abre normalmente e ganha `_01` ao ser salvo.
 - **Rascunho automático:** cerca de 1 segundo depois de qualquer alteração o app guarda um rascunho no navegador. Se a aba fechar, o celular reiniciar ou você tocar em voltar, o desenho volta pelo botão *Continuar rascunho*. Rascunho **não** é o mesmo que salvar: só o *Salvar* cria os arquivos nas pastas.
-- **A aba "Chamar IA" ainda é só visual.** Ela mostra como vai funcionar (a IA usa as mesmas ferramentas do editor, entrega o resultado **em um frame novo**, aceita imagem de inspiração e pode partir do zero ou do primeiro frame), mas o chat de verdade chega na Etapa 5.
+- **A aba "Chamar IA"** já tem o **Modelo IA do editor** (PixelLab padrão) e o **Transformar imagem**. O pedido por texto (a IA criar/alterar o desenho num frame novo) ainda vai ser ligado.
 
 **Ainda não está nesta parte:** painel de camadas (o formato do arquivo já suporta várias camadas, falta o painel) e ações como "andar" e "correr" com propriedades como origem e hitbox (Etapa 2b).
 
 ## O que a Etapa 3 entrega (arquivos, inspiração, variações e backup)
 
-- **Imagem de inspiração:** na lateral direita do editor, a aba com ícone de imagem (*Imagem de inspiração*) abre um painel ao lado do desenho. Escolha uma imagem sua (PNG, JPG, WebP ou GIF) e ela fica ali para você olhar e copiar. **O conta-gotas funciona nela**: toque ou clique na imagem para pegar uma cor (se a cor não estiver na paleta, ela é acrescentada). Arraste para mover a imagem; role ou use dois dedos para dar zoom. Ela **acompanha o projeto**: é guardada junto com o primeiro frame salvo e no rascunho, e volta quando você abrir o desenho de novo. **Nunca aparece** nos PNG, GIF, sprite sheet ou frames exportados; só vai no arquivo JSON do projeto, e só se você marcar essa opção.
+- **Imagem de inspiração:** fica **ao lado da tela de criação** (desenho à esquerda, inspiração à direita, ferramentas embaixo), já aberta. A aba *Inspiração* (lateral direita) e o ✕ escondem/mostram o painel; a escolha fica lembrada neste aparelho. Escolha uma imagem sua (PNG, JPG, WebP ou GIF) e ela fica ali para você olhar e copiar. **O conta-gotas funciona nela**: toque ou clique na imagem para pegar uma cor (se a cor não estiver na paleta, ela é acrescentada). Arraste para mover a imagem; role ou use dois dedos para dar zoom. Ela **acompanha o projeto**: é guardada junto com o primeiro frame salvo e no rascunho, e volta quando você abrir o desenho de novo. **Nunca aparece** nos PNG, GIF, sprite sheet ou frames exportados; só vai no arquivo JSON do projeto, e só se você marcar essa opção.
 - **Exportar** (botão ⬇ no topo do editor → *Exportar*), sempre com prévia e ampliação de 1× a 16×:
   - **Imagem PNG** do frame atual (`Nome_01.png`);
   - **Todos os frames** em um ZIP de PNGs;
@@ -84,9 +84,31 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 - Cada desenho aparece com a **imagem do primeiro frame**, o jogo com a imagem do projeto e o cenário com a miniatura dele.
 - **☰ Lista / ▦ Blocos** troca a visualização da pasta, e a escolha fica lembrada neste aparelho.
 
+
+## Tela de login
+
+- O app abre em **Entrar** (`#/entrar`) quando este aparelho ainda não tem conta ligada. Depois de entrar, volta para a tela que você queria abrir e a sincronização começa sozinha.
+- **Continuar sem entrar** vale até fechar a aba: os desenhos ficam só neste aparelho.
+- Se a sessão vencer, aparece um aviso e a próxima tela pede o login de novo.
+- **☁️ Nuvem → 🩺 Testar a conexão** confere passo a passo: o Supabase responde e aceita a chave do app? há conta neste aparelho? dá para ler e gravar a tabela `itens`? quantas alterações esperam para subir? Cada passo diz o que fazer quando falha.
+- Correção: a sincronização pulava itens quando muitos eram enviados de uma vez (eles ganham a mesma data no Supabase). Agora a leitura continua pelo par (data, id).
+
+## Transformar imagem (editor de pixels)
+
+Abra por **Chamar IA → 🪄 Transformar imagem**, pelo menu ⬇ *Exportar e importar*, ou pelo cartão na tela inicial do editor.
+
+1. **Imagem:** escolha qualquer imagem (PNG, JPG, WebP…).
+2. **Quem faz:** *Mini Engine* (sem IA, grátis, na hora — usa as ferramentas do próprio editor), *PixelLab* (recomendada) ou *SpriteCook*. Para as duas IAs há um campo para colar a chave ali mesmo.
+3. **Escala:** Manter, 16×16, 24×24, 32×32, 48×48, 64×64, 96×96 ou 128×128. Se a imagem for maior que a escala, tudo é reduzido para caber (64×64 com escala 32×32 → 32×32); se for menor, é ampliada por número inteiro e centralizada.
+4. **Perspectiva:** Nenhuma, Isométrico ou Top down (de frente). Perspectiva precisa de IA.
+- **Sem escala e sem perspectiva**, a imagem volta **exatamente como é**, só que editável dentro da grade (feito no app, sem gastar IA). Pixel art ampliada (ex.: um PNG 512×512 de um desenho 32×32) volta ao tamanho original.
+- Com IA, o pedido leva as regras de uma boa pixel art de jogo (grade, sem antisserrilhado, paleta curta, contorno, fundo transparente) e a resposta passa pelo mesmo acabamento do editor: sempre volta **na grade escolhida** e com as cores encaixadas na paleta.
+- O resultado aparece primeiro; **Pôr no editor** coloca a arte **num frame novo**. Se o tamanho for diferente do desenho, o app pergunta: frame novo (ajustado ao desenho) ou desenho novo do tamanho da arte. Num desenho novo e vazio, ele mesmo passa a ter o tamanho da arte. Ctrl+Z desfaz.
+
 ## Modelo IA organizado
 
-- Três abas: **Gemini**, **OpenRouter** e **PixelLab** (a PixelLab desenha pixel art, não programa; por isso fica separada).
+- **No Criar jogo**, duas abas: **Gemini** e **OpenRouter** (quem programa o jogo).
+- **No editor de pixels** (Chamar IA → Modelo IA), quatro: **PixelLab** (padrão), **SpriteCook**, Gemini e OpenRouter. O modelo do editor é uma escolha separada da do Criar jogo; as chaves são as mesmas deste aparelho.
 - Em vez da lista enorme, cada aba mostra **poucos recomendados**, com explicação:
   - **Gemini:** *Recomendado* (o Flash estável mais novo), *Mais caprichado* (Pro) e *Mais leve* (Flash-Lite).
   - **OpenRouter:** até 5 **grátis** bons para programar (um de cada família) e alguns **pagos** baratos e bons.
@@ -108,7 +130,8 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
 
 - **Gemini:** https://aistudio.google.com/apikey
 - **OpenRouter:** https://openrouter.ai/keys (entre na conta → *Keys* → *Create Key*; a chave começa com `sk-or-`).
-- **PixelLab** (gera pixel art): https://www.pixellab.ai/account (entre na conta e copie o *API token*; é paga por uso). Fica em **Modelo IA → Chave da PixelLab**, com o botão "Salvar e testar". Ela será usada pelo "Solicitar IA" dos sprites.
+- **PixelLab** (gera pixel art): https://www.pixellab.ai/account (entre na conta e copie o *API token*; é paga por uso). Fica no editor, em **Chamar IA → Modelo IA → PixelLab** (ou direto na tela *Transformar imagem*).
+- **SpriteCook** (gera e edita sprites): https://app.spritecook.ai/api-keys (crie uma chave `sc_live_…` com a permissão *generate*). Fica em **Chamar IA → Modelo IA → SpriteCook** ou na tela *Transformar imagem*.
 - Todas as chaves ficam só no aparelho onde você colou: não vão para a nuvem, nem para o backup, nem para o jogo.
 
 ## Criar jogo (chat com a IA + teste ao vivo)
@@ -126,7 +149,7 @@ Site que roda 100% no navegador (HTML, CSS e JavaScript puro, sem build) para cr
   - `@[nome com espaço]` serve para nomes com espaço.
 
   Ao digitar `@` aparece a lista para escolher. O app transforma cada desenho num sprite sheet, e a IA usa só os nomes que existem. Se você editar o sprite no editor, o jogo muda na próxima vez que rodar.
-- **Modelo IA:** Gemini (Google) ou OpenRouter. O mesmo botão aparece na aba **Chamar IA** do editor; a escolha vale para os dois. A lista de modelos vem do próprio provedor. A **chave fica só neste aparelho**: não vai para a nuvem, nem para o backup, nem para o jogo. No outro aparelho, cole de novo.
+- **Modelo IA:** Gemini (Google) ou OpenRouter. (O editor tem o seu próprio Modelo IA, com a PixelLab como padrão.) A lista de modelos vem do próprio provedor. A **chave fica só neste aparelho**: não vai para a nuvem, nem para o backup, nem para o jogo. No outro aparelho, cole de novo.
 - **A IA programa com Phaser 3.90**:
   - a resposta mostra o que ela fez e quais arquivos mudou (✎ main.js…);
   - o que falta você fazer aparece como 📌 (por exemplo, "desenhar uma moeda");
@@ -273,6 +296,9 @@ src/
     importar.js       lê e corrige JSON de sprite, lê imagens
     variacoes.js      mudar o tom das cores e neve (sem tela); cores.js: HSV <-> RGB
     referencia.js     painel da imagem de inspiração
+    pixelizar.js      põe qualquer imagem na grade (sem IA): volta à grade, escala, fundo, cores
+    transformar-ia.js pedidos à PixelLab e à SpriteCook (Transformar imagem)
+    dialogo-transformar.js  tela Transformar imagem
     dialogos-arquivo.js, dialogos-variacoes.js   janelas de exportar, importar, tom e neve
     painel-*.js, barra-ferramentas.js, seletor-cor.js, dialogos-editor.js, icones.js, render.js
   screens/            inicio, gerenciador, lixeira, backup, nuvem, jogo, cenario, diagnostico, editor, em-breve

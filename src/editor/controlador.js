@@ -193,6 +193,26 @@ export class Controlador {
     }, { pixels: true, quadros: true });
   }
 
+  /**
+   * Quadro novo com uma arte pronta (Transformar imagem): `indices` vai para a camada ativa,
+   * as outras camadas ficam vazias e as `novasCores` entram no fim da paleta. Um único "desfazer".
+   */
+  inserirQuadroComArte(indices, novasCores = [], posicao = this.e.quadros.length) {
+    return this._transacao((e) => {
+      if (indices.length !== e.largura * e.altura) throw new ErroDoEditor('A arte não combina com o tamanho do desenho.');
+      if (e.paleta.length + novasCores.length > MAX_CORES) throw new ErroDoEditor('Não há lugar na paleta para as cores da arte.');
+      e.paleta = [...e.paleta, ...novasCores];
+      const camadas = e.camadas.map((_, i) => (i === e.camadaAtiva ? Uint8Array.from(indices) : new Uint8Array(e.largura * e.altura)));
+      e.quadros.splice(posicao, 0, { camadas });
+      e.atual = posicao;
+    }, { pixels: true, quadros: true, paleta: novasCores.length > 0 });
+  }
+
+  /** O desenho ainda está "em branco" (1 frame vazio, nunca salvo)? */
+  get emBranco() {
+    return !this.origem && this.e.quadros.length === 1 && this.e.quadros[0].camadas.every((b) => !b.some((v) => v));
+  }
+
   duplicarQuadro(i = this.e.atual) {
     return this._transacao((e) => {
       e.quadros.splice(i + 1, 0, { camadas: e.quadros[i].camadas.slice() }); // buffers são imutáveis: podem ser compartilhados

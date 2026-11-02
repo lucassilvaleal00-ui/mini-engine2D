@@ -486,3 +486,13 @@ h1:focus, h1:focus-visible { outline: none; }
 .lista.blocos .linha-nome { max-width: 100%; }
 .lista.blocos .linha-meta { font-size: .72rem; }
 .lista.blocos .linha-menu { position: absolute; top: 4px; right: 4px; width: 36px; height: 36px; min-height: 0; border: 0; }
+
+/* ---------- Login (#/entrar) e teste de conexão ---------- */
+.entrar-corpo { max-width: 420px; margin: 0 auto; }
+.entrar-sem-conta { text-align: center; margin: 6px 0 24px; }
+.linha-direita { display: flex; justify-content: flex-end; margin-top: -4px; }
+.link.pequeno { font-size: .85rem; }
+.nuvem-teste { margin-top: 10px; }
+.nuvem-passos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.nuvem-passos li { padding: 8px 10px; border-radius: 8px; background: var(--painel-2); font-size: .92rem; overflow-wrap: anywhere; }
+.nuvem-passos li[data-ok="false"] { outline: 1px solid var(--perigo); }

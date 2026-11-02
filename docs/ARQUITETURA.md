@@ -126,3 +126,10 @@ Banco `mini-engine`, versão 1, três stores:
 - **IA (Etapas 5 e 6):** pedidos registrados para a 5: comando `aprimorar`, mostrar o resultado primeiro e entregar frame por frame quando o pedido tiver vários frames, e nunca mandar a imagem de inspiração (`reference`) à IA sem o usuário anexar de propósito. Um módulo de chat único (provedores, chave, anexos, chamada de ferramentas) usado pelo "Solicitar IA" do sprite e pelo "Criar jogo". As chaves ficam só no `localStorage`. No "Criar jogo" a IA recebe apenas ferramentas de leitura dos sprites e cenários.
 - **Jogo de teste:** `<iframe sandbox>` **sem** `allow-same-origin`, para que o código gerado pela IA não consiga ler o `localStorage` (onde ficam as chaves). Phaser, sprites e `assets.json` entram no iframe montados em memória.
 - **Backup:** feito na Etapa 3 (ver acima), porque o navegador pode apagar o IndexedDB e a persistência não é garantida.
+
+## Transformar imagem e login (01/11)
+
+- `editor/pixelizar.js` (sem DOM): detecta pixel art ampliada (blocos k×k, inclusive fracionários, e confere que as mudanças acontecem nas divisas — fotos e degradês não contam), reduz/encaixa na escala sem deformar, tira o fundo liso, deixa o alfa binário e converte as cores para a paleta (máx. 35 + transparente).
+- `editor/transformar-ia.js` (sem DOM, testável com fetch falso): PixelLab (pixflux com imagem inicial) e SpriteCook (importar asset + generate-sync com edição). Erros viram `ErroDeDesenho` com mensagem amigável.
+- `editor/dialogo-transformar.js`: a tela; devolve `{ rgba, largura, altura, nome }`. A tela do editor decide o destino: frame novo (`Controlador.inserirQuadroComArte`, um só desfazer), desenho novo, ou o próprio desenho se ele estiver em branco (`ctl.emBranco`).
+- `core/router.js` aceita `guarda(chave, caminho)`; `screens/entrar.js` usa isso para o login na abertura.

@@ -214,8 +214,8 @@ export function escolherPasta({
 }
 
 /**
- * Menu de ações (folha de opções). Cada ação: { rotulo, icone, nota, perigo, desabilitado, ao }.
- * Fecha o menu e depois executa `ao()` da ação escolhida.
+ * Menu de ações (folha de opções). Cada ação: { rotulo, icone, nota, perigo, desabilitado, ao, valor }.
+ * Fecha o menu e depois executa `ao()` da ação escolhida; devolve o `valor` dela (ou null).
  */
 export function menuAcoes({ titulo, subtitulo, acoes }) {
   return executar(({ fechar }) => [
@@ -234,5 +234,6 @@ export function menuAcoes({ titulo, subtitulo, acoes }) {
     h('button', { class: 'botao largo', type: 'button', onclick: () => fechar(null) }, 'Fechar'),
   ]).then(async (acao) => {
     if (acao && acao.ao) await acao.ao();
+    return acao?.valor ?? null; // ações sem `ao` podem ter um `valor`, devolvido aqui
   });
 }

@@ -19,14 +19,17 @@
 
 import { lerMeta, gravarMeta } from './db.js';
 import * as armazem from './storage.js';
-import { rest, sessaoAtual, entrar as entrarNaConta, criarConta as criarContaNova, sair as sairDaConta, ErroDaNuvem } from './nuvem.js';
+import { rest, sessaoAtual, tokenValido, lerConfiguracoesDoLogin, entrar as entrarNaConta, criarConta as criarContaNova, sair as sairDaConta, ErroDaNuvem } from './nuvem.js';
 
 const CHAVE_MARCA = 'nuvem.marca';   // maior `alterado_em` já visto na nuvem
 const CHAVE_CONTA = 'nuvem.conta';   // id da conta com que este aparelho sincroniza
 const CHAVE_ULTIMA = 'nuvem.ultima'; // quando terminou o último ciclo com sucesso
 const FOLGA_MS = 10_000;             // relê os últimos 10 s (gravações que demoraram a confirmar)
-const PAGINA = 500;
+let PAGINA = 500;
 const LOTE_DOWNLOAD = 40;
+
+/** Só para os testes: página menor para exercitar a paginação. */
+export function ajustarParaTeste({ pagina } = {}) { if (pagina) PAGINA = pagina; }
 
 const estado = {
   fase: 'desligada', // desligada | ociosa | sincronizando | sem_rede | erro
@@ -52,15 +55,23 @@ function emitir(extra = {}) {
 
 const menosFolga = (iso) => new Date(Date.parse(iso) - FOLGA_MS).toISOString();
 const filtroData = (iso) => `alterado_em=gt.${encodeURIComponent(iso)}`;
+/**
+ * Próxima página "depois de (data, id)". Importante: o Supabase dá a MESMA data a todas as linhas
+ * gravadas num mesmo envio (até 50 itens); só "data maior que" pularia as que ficaram para a
+ * próxima página. Por isso a página seguinte continua pelo par (data, id).
+ */
+const filtroDepoisDe = (iso, id) => `or=${encodeURIComponent(`(alterado_em.gt."${iso}",and(alterado_em.eq."${iso}",id.gt."${id}"))`)}`;
 
 async function puxar() {
   const marca = await lerMeta(CHAVE_MARCA, null);
   const total = { aplicados: 0, apagados: 0, conflitos: [], renomeados: 0 };
-  let desde = marca ? menosFolga(marca) : null;
+  let depois = null; // { iso, id } da última linha da página anterior
   let maior = marca;
 
   for (let guarda = 0; guarda < 1000; guarda++) {
-    const filtro = desde ? `&${filtroData(desde)}` : '';
+    let filtro = '';
+    if (depois) filtro = `&${filtroDepoisDe(depois.iso, depois.id)}`;
+    else if (marca) filtro = `&${filtroData(menosFolga(marca))}`;
     const leves = await rest(`itens?select=id,alterado_em&order=alterado_em.asc,id.asc&limit=${PAGINA}${filtro}`);
     if (!leves?.length) break;
 
@@ -77,11 +88,12 @@ async function puxar() {
       total.conflitos.push(...r.conflitos);
     }
 
-    const ultima = leves[leves.length - 1].alterado_em;
+    const ultimaLinha = leves[leves.length - 1];
+    const ultima = ultimaLinha.alterado_em;
     if (!maior || Date.parse(ultima) > Date.parse(maior) || (Date.parse(ultima) === Date.parse(maior) && ultima > maior)) maior = ultima;
     await gravarMeta(CHAVE_MARCA, maior);
     if (leves.length < PAGINA) break;
-    desde = ultima;
+    depois = { iso: ultima, id: ultimaLinha.id };
   }
   return total;
 }
@@ -247,3 +259,71 @@ export async function sair() {
 }
 
 export const limparConflitos = () => { estado.conflitos = []; emitir(); };
+
+/* ------------------------------------------------------------------ */
+/* Teste de conexão (tela Nuvem → "Testar a conexão")                  */
+/* ------------------------------------------------------------------ */
+
+const ID_TESTE = '__teste_de_conexao__';
+
+/**
+ * Confere, passo a passo, cada coisa de que a sincronização precisa e diz qual falhou.
+ * @returns [{ passo, ok, texto }]
+ */
+export async function testarConexao() {
+  const passos = [];
+  const passo = async (nome, fn) => {
+    try {
+      const texto = await fn();
+      passos.push({ passo: nome, ok: true, texto: texto || 'ok' });
+      return true;
+    } catch (erro) {
+      passos.push({ passo: nome, ok: false, texto: erro?.message || String(erro) });
+      return false;
+    }
+  };
+
+  const alcancou = await passo('Supabase responde e aceita a chave do app', async () => {
+    const cfg = await lerConfiguracoesDoLogin();
+    const avisos = [];
+    if (cfg && cfg.mailer_autoconfirm === false) avisos.push('“Confirm email” está ligado (contas novas precisam confirmar pelo e-mail)');
+    if (cfg && cfg.disable_signup === true) avisos.push('criar conta está desligado (só “Entrar”)');
+    return avisos.length ? `ok — atenção: ${avisos.join('; ')}.` : 'ok';
+  });
+  if (!alcancou) return passos;
+
+  if (!sessaoAtual()) {
+    passos.push({ passo: 'Conta neste aparelho', ok: false, texto: 'Ninguém entrou neste aparelho. Entre com o seu e-mail e senha.' });
+    return passos;
+  }
+  const temSessao = await passo('Conta neste aparelho', async () => {
+    await tokenValido({ forcar: true });
+    return `ok — ${sessaoAtual()?.user.email}`;
+  });
+  if (!temSessao) return passos;
+
+  const leu = await passo('Ler a tabela “itens”', async () => {
+    const linhas = await rest('itens?select=id,apagado&limit=10000');
+    const ativos = (linhas || []).filter((l) => !l.apagado && l.id !== ID_TESTE).length;
+    return `ok — ${ativos} ${ativos === 1 ? 'item guardado' : 'itens guardados'} na nuvem nesta conta`;
+  });
+  if (!leu) return passos;
+
+  await passo('Gravar na tabela “itens”', async () => {
+    const r = await rest('itens?on_conflict=user_id,id&select=id,alterado_em', {
+      metodo: 'POST',
+      corpo: [{ user_id: sessaoAtual().user.id, id: ID_TESTE, item: null, dados: null, apagado: true }],
+      cabecalhos: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    });
+    if (!r?.length || !r[0].alterado_em) throw new Error('O Supabase aceitou, mas não devolveu a data da alteração: o gatilho “marcar_alteracao” do SQL pode ter sido apagado. Rode o docs/supabase.sql de novo.');
+    return 'ok';
+  });
+
+  const pend = await armazem.nuvemContarPendentes().catch(() => 0);
+  passos.push({
+    passo: 'Alterações deste aparelho esperando para subir',
+    ok: true,
+    texto: pend ? `${pend} — toque em “Sincronizar agora”` : 'nenhuma',
+  });
+  return passos;
+}

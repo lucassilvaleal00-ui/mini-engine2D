@@ -13,11 +13,10 @@ import { aviso, avisarErro } from '../ui/toast.js';
 import { confirmar } from '../ui/dialogos.js';
 import { formatarDataHora, pluralizar } from '../ui/formato.js';
 import {
-  estadoDaSincronia, sincronizarAgora, entrar, criarConta, sair, limparConflitos,
+  estadoDaSincronia, sincronizarAgora, sair, limparConflitos, testarConexao,
 } from '../core/sincronia.js';
+import { formularioDeEntrada } from '../ui/form-entrada.js';
 import { sessaoAtual } from '../core/nuvem.js';
-
-const esperarPintar = () => new Promise((r) => setTimeout(r, 30));
 
 /** Texto curto da situação (também usado no rodapé da tela inicial). */
 export function textoDaSituacao(e) {
@@ -48,53 +47,35 @@ export async function montar(el, { voltar, navegar }) {
         h('li', {}, 'No plano grátis, o Supabase pausa o projeto depois de cerca de 7 dias sem nenhum uso. Se a sincronização parar de funcionar, entre no painel do Supabase e reative o projeto.'),
         h('li', {}, 'O backup em ZIP continua valendo como cópia de segurança extra.'))));
 
+  /* ---------- teste de conexão ---------- */
+  const resultadoTeste = h('div', { class: 'nuvem-teste', 'aria-live': 'polite' });
+  const bTestar = h('button', {
+    class: 'botao largo', type: 'button',
+    onclick: async () => {
+      bTestar.disabled = true;
+      bTestar.textContent = 'Testando…';
+      preencher(resultadoTeste, h('p', { class: 'dica pequena' }, 'Conferindo cada parte…'));
+      const passos = await testarConexao().catch((x) => [{ passo: 'Teste', ok: false, texto: x.message || String(x) }]);
+      preencher(resultadoTeste, h('ul', { class: 'nuvem-passos' }, passos.map((p) => h('li', { 'data-ok': String(p.ok) },
+        h('span', { 'aria-hidden': 'true' }, p.ok ? '✅' : '❌'), ' ', h('strong', {}, p.passo), ': ', p.texto))));
+      bTestar.disabled = false;
+      bTestar.textContent = '🩺 Testar a conexão';
+    },
+  }, '🩺 Testar a conexão');
+
   /* ---------- sem conta ---------- */
   function desenharEntrada(erroTexto = null) {
-    const email = h('input', {
-      class: 'campo', id: 'nuvem-email', type: 'email', autocomplete: 'username', inputMode: 'email',
-      placeholder: 'seu@email.com', spellcheck: false,
-    });
-    const senha = h('input', {
-      class: 'campo', id: 'nuvem-senha', type: 'password', autocomplete: 'current-password', placeholder: 'mínimo 6 caracteres',
-    });
-    const erro = h('p', { class: 'campo-erro', role: 'alert', hidden: !erroTexto }, erroTexto || '');
-    const bEntrar = h('button', { class: 'botao primario', type: 'submit' }, 'Entrar');
-    const bCriar = h('button', { class: 'botao', type: 'button', onclick: () => agir('criar') }, 'Criar conta');
-
-    async function agir(qual) {
-      erro.hidden = true;
-      bEntrar.disabled = bCriar.disabled = true;
-      const rotulo = qual === 'criar' ? bCriar : bEntrar;
-      const original = rotulo.textContent;
-      rotulo.textContent = qual === 'criar' ? 'Criando…' : 'Entrando…';
-      await esperarPintar();
-      try {
-        const fn = qual === 'criar' ? criarConta : entrar;
-        await fn(email.value, senha.value);
-        const e = estadoDaSincronia();
-        if (e.fase === 'erro' || e.fase === 'sem_rede') aviso(`Entrou, mas a primeira sincronização falhou: ${e.erro}`, { tipo: 'erro', duracao: 8000 });
-        else aviso(qual === 'criar' ? 'Conta criada e sincronizada.' : 'Pronto: este aparelho está sincronizado.', { tipo: 'ok' });
-        desenhar();
-      } catch (x) {
-        erro.textContent = x.message || String(x);
-        erro.hidden = false;
-        bEntrar.disabled = bCriar.disabled = false;
-        rotulo.textContent = original;
-      }
-    }
-
-    preencher(corpo, h('form', {
-      class: 'painel nuvem-form',
-      onsubmit: (ev) => { ev.preventDefault(); agir('entrar'); },
-    },
-    h('h2', { class: 'nuvem-titulo' }, 'Entrar na sua conta'),
-    h('label', { class: 'campo-rotulo', htmlFor: 'nuvem-email' }, 'E-mail'), email,
-    h('label', { class: 'campo-rotulo', htmlFor: 'nuvem-senha' }, 'Senha'), senha,
-    erro,
-    h('div', { class: 'nuvem-botoes' }, bEntrar, bCriar),
-    h('p', { class: 'dica pequena' }, 'Primeira vez? Digite um e-mail e uma senha e toque em “Criar conta”. No outro aparelho, use “Entrar” com os mesmos dados.'),
-    h('div', { class: 'aviso-caixa', role: 'note' },
-      'Ao entrar, o que já está neste aparelho é enviado para a nuvem e se junta ao que já está lá. Nada é apagado.')));
+    preencher(corpo, [
+      formularioDeEntrada({
+        erroInicial: erroTexto,
+        aoEntrar: ({ criou, estado: e }) => {
+          if (e.fase === 'erro' || e.fase === 'sem_rede') aviso(`Entrou, mas a primeira sincronização falhou: ${e.erro}`, { tipo: 'erro', duracao: 8000 });
+          else aviso(criou ? 'Conta criada e sincronizada.' : 'Pronto: este aparelho está sincronizado.', { tipo: 'ok' });
+          desenhar();
+        },
+      }),
+      bTestar, resultadoTeste,
+    ]);
   }
 
   /* ---------- com conta ---------- */
@@ -150,7 +131,8 @@ export async function montar(el, { voltar, navegar }) {
         h('button', { class: 'link', type: 'button', onclick: () => { limparConflitos(); } }, 'Entendi'),
         ' · ',
         h('button', { class: 'link', type: 'button', onclick: () => navegar('/gerenciador') }, 'Abrir o Gerenciador')),
-      h('div', { class: 'backup-acoes' }, bSinc, bSair),
+      h('div', { class: 'backup-acoes' }, bSinc, bTestar, bSair),
+      resultadoTeste,
     ]);
   }
 

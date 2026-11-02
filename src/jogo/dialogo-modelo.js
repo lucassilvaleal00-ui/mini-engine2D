@@ -1,31 +1,49 @@
 /**
- * dialogo-modelo.js — Janela "Modelo IA", em três abas:
- *   Gemini | OpenRouter  → chave + poucos modelos RECOMENDADOS (com explicação e botão Testar);
- *                          a lista completa fica escondida em "Outros modelos", com busca.
- *   PixelLab             → só a chave (gera pixel art; não é modelo de conversa).
- * As chaves ficam só neste aparelho.
+ * dialogo-modelo.js — Janela "Modelo IA". Tem dois modos:
+ *   modo 'jogo'   (Criar jogo):  Gemini | OpenRouter — quem PROGRAMA o jogo.
+ *   modo 'editor' (editor de pixels): PixelLab (padrão) | SpriteCook | Gemini | OpenRouter — quem DESENHA.
+ * Gemini/OpenRouter: chave + poucos modelos RECOMENDADOS (com explicação e botão Testar);
+ * a lista completa fica escondida em "Outros modelos", com busca.
+ * PixelLab/SpriteCook: chave + "Testar a chave" + "Usar".
+ * As chaves ficam só neste aparelho. O modelo do editor e o do Criar jogo são escolhas separadas.
  */
 
 import { h, preencher } from '../ui/dom.js';
 import { abrirDialogo } from '../ui/dialogos.js';
 import {
-  PROVEDORES, OUTRAS_CHAVES, lerChave, gravarChave, modeloEscolhido, escolherModelo, listarModelos, testarPixelLab,
+  PROVEDORES, OUTRAS_CHAVES, lerChave, gravarChave, modeloEscolhido, escolherModelo, listarModelos, testarPixelLab, testarSpriteCook,
+  modeloDoEditor, escolherModeloDoEditor, MODELOS_DE_DESENHO,
 } from '../core/ia.js';
 import { organizarModelos, resultadoDoTeste, testarModelo } from '../core/modelos-ia.js';
 
-/** Nome curto para o botão: "Gemini · gemini-2.5-flash" */
+const NOMES = { pixellab: 'PixelLab', spritecook: 'SpriteCook', gemini: 'Gemini', openrouter: 'OpenRouter' };
+const ABAS = { jogo: ['gemini', 'openrouter'], editor: ['pixellab', 'spritecook', 'gemini', 'openrouter'] };
+const TESTAR_CHAVE = { pixellab: testarPixelLab, spritecook: testarSpriteCook };
+const SOBRE = {
+  pixellab: 'A PixelLab é uma IA que DESENHA pixel art (personagens, objetos, tilesets) e entende perspectiva isométrica e de cima. É a recomendada para o editor.',
+  spritecook: 'A SpriteCook também DESENHA pixel art e consegue refazer uma imagem sua dentro de uma grade (16, 32, 64…). Use se preferir ou se a PixelLab não resolver.',
+};
+
+/** Nome curto para o botão: "Gemini · gemini-2.5-flash" ou "PixelLab" */
 export function rotuloDoModelo(m = modeloEscolhido()) {
+  if (MODELOS_DE_DESENHO[m.provedor]) return NOMES[m.provedor];
   const curto = m.id.length > 28 ? `${m.id.slice(0, 26)}…` : m.id;
-  return `${m.provedor === 'gemini' ? 'Gemini' : 'OpenRouter'} · ${curto}`;
+  return `${NOMES[m.provedor] || m.provedor} · ${curto}`;
 }
+
+/** O modelo escolhido para o modo tem chave? */
+export const modeloTemChave = (modo = 'jogo') => !!lerChave((modo === 'editor' ? modeloDoEditor() : modeloEscolhido()).provedor);
 
 const cache = {}; // provedor -> lista (para não buscar de novo a cada abertura)
 
 /** Abre a janela. Devolve o modelo escolhido ou null. */
-export function dialogoModelo({ aba = null } = {}) {
-  const atual = modeloEscolhido();
+export function dialogoModelo({ aba = null, modo = 'jogo' } = {}) {
+  const editor = modo === 'editor';
+  const abasDoModo = ABAS[editor ? 'editor' : 'jogo'];
+  const atual = editor ? modeloDoEditor() : modeloEscolhido();
+  const escolher = editor ? escolherModeloDoEditor : escolherModelo;
   const ui = {
-    aba: aba || atual.provedor,
+    aba: abasDoModo.includes(aba) ? aba : (abasDoModo.includes(atual.provedor) ? atual.provedor : abasDoModo[0]),
     escolhido: { ...atual },
     busca: '',
     carregando: false,
@@ -39,12 +57,11 @@ export function dialogoModelo({ aba = null } = {}) {
     const rodape = h('div', { class: 'dialogo-botoes fixo' });
 
     function desenhar() {
-      const nomes = { gemini: 'Gemini', openrouter: 'OpenRouter', pixellab: 'PixelLab' };
-      preencher(abas, Object.entries(nomes).map(([id, nome]) => h('button', {
+      preencher(abas, abasDoModo.map((id) => h('button', {
         class: 'segmento', type: 'button', role: 'tab', 'aria-selected': String(ui.aba === id), 'aria-pressed': String(ui.aba === id),
         onclick: () => { ui.aba = id; ui.erro = null; ui.busca = ''; ui.trocarChave = false; desenhar(); carregar(); },
-      }, `${nome}${lerChave(id) ? ' ✓' : ''}`)));
-      if (ui.aba === 'pixellab') desenharPixelLab(); else desenharProvedor();
+      }, `${NOMES[id]}${lerChave(id) ? ' ✓' : ''}`)));
+      if (MODELOS_DE_DESENHO[ui.aba]) desenharDesenhista(); else desenharProvedor();
       desenharRodape();
     }
 
@@ -148,7 +165,7 @@ export function dialogoModelo({ aba = null } = {}) {
 
     async function carregar() {
       const p = ui.aba;
-      if (p === 'pixellab' || !lerChave(p) || cache[p] || ui.carregando) return;
+      if (MODELOS_DE_DESENHO[p] || !lerChave(p) || cache[p] || ui.carregando) return;
       ui.carregando = true;
       ui.erro = null;
       desenhar();
@@ -167,40 +184,39 @@ export function dialogoModelo({ aba = null } = {}) {
       }
     }
 
-    /* ---------- PixelLab ---------- */
-    function desenharPixelLab() {
-      const info = OUTRAS_CHAVES.pixellab;
+    /* ---------- PixelLab / SpriteCook ---------- */
+    function desenharDesenhista() {
+      const p = ui.aba;
       const status = h('p', { class: 'dica', role: 'status' });
-      const tem = !!lerChave('pixellab');
+      const tem = !!lerChave(p);
+      ui.escolhido = { ...MODELOS_DE_DESENHO[p] };
       preencher(corpo,
-        h('p', { class: 'dica' }, 'A PixelLab é uma IA que DESENHA pixel art (personagens, animações, tilesets). Ela não programa o jogo: será usada pelo “Solicitar IA” dos sprites.'),
-        blocoChave('pixellab', info),
+        h('p', { class: 'dica' }, SOBRE[p]),
+        blocoChave(p, OUTRAS_CHAVES[p]),
         tem && h('button', {
           class: 'botao', type: 'button',
-          onclick: async () => { status.textContent = 'Testando…'; status.textContent = (await testarPixelLab()).texto; },
+          onclick: async () => { status.textContent = 'Testando…'; status.textContent = (await TESTAR_CHAVE[p]()).texto; },
         }, 'Testar a chave (consulta o saldo)'),
         status);
     }
 
     /* ---------- rodapé ---------- */
     function desenharRodape() {
-      if (ui.aba === 'pixellab') {
-        preencher(rodape, h('button', { class: 'botao primario', type: 'button', onclick: () => fechar(null) }, 'Pronto'));
-        return;
-      }
+      const desenhista = !!MODELOS_DE_DESENHO[ui.aba];
       const pode = !!lerChave(ui.escolhido.provedor) && ui.escolhido.provedor === ui.aba;
+      const rotulo = desenhista ? `Usar ${NOMES[ui.aba]}` : (pode ? `Usar ${ui.escolhido.id.length > 22 ? `${ui.escolhido.id.slice(0, 20)}…` : ui.escolhido.id}` : 'Usar este modelo');
       preencher(rodape,
         h('button', { class: 'botao', type: 'button', onclick: () => fechar(null) }, 'Cancelar'),
         h('button', {
           class: 'botao primario', type: 'button', disabled: !pode,
-          onclick: () => { escolherModelo(ui.escolhido); fechar(ui.escolhido); },
-        }, pode ? `Usar ${ui.escolhido.id.length > 22 ? `${ui.escolhido.id.slice(0, 20)}…` : ui.escolhido.id}` : 'Usar este modelo'));
+          onclick: () => { escolher(ui.escolhido); fechar(ui.escolhido); },
+        }, rotulo));
     }
 
     desenhar();
     carregar();
     return [
-      h('h2', { class: 'dialogo-titulo' }, 'Modelo IA'),
+      h('h2', { class: 'dialogo-titulo' }, editor ? 'Modelo IA do editor' : 'Modelo IA'),
       h('p', { class: 'dialogo-sub' }, `Em uso agora: ${rotuloDoModelo(atual)}`),
       abas,
       corpo,

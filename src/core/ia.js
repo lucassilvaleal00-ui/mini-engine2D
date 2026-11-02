@@ -7,7 +7,7 @@
  *   mensagens: [{ papel: 'usuario' | 'ia', texto, imagens?: [dataURL] }]
  * - Os modelos são listados direto do provedor (assim o seletor acompanha os modelos novos).
  *
- * Usado pelo "Criar jogo" e, depois, pelo "Solicitar IA" dos sprites.
+ * Usado pelo "Criar jogo" e pelo editor de pixels (que tem o seu próprio modelo: PixelLab por padrão).
  */
 
 export const PROVEDORES = {
@@ -25,29 +25,39 @@ export const PROVEDORES = {
   },
 };
 
-/** Outras chaves (não são modelos de chat). A PixelLab gera pixel art; será usada pelo "Solicitar IA". */
+/**
+ * Outras chaves (não são modelos de conversa): IAs que DESENHAM pixel art.
+ * São usadas no editor de pixels ("Chamar IA" e "Transformar imagem"), não no Criar jogo.
+ */
 export const OUTRAS_CHAVES = {
   pixellab: {
     nome: 'PixelLab',
     ondePegar: 'https://www.pixellab.ai/account',
     dica: 'Gera pixel art (personagens, animações, tilesets). Entre em pixellab.ai, abra a sua conta (Account) e copie o API token. É paga por uso.',
   },
+  spritecook: {
+    nome: 'SpriteCook',
+    ondePegar: 'https://app.spritecook.ai/api-keys',
+    dica: 'Gera e edita sprites em pixel art. Entre em app.spritecook.ai, abra “API Keys” e crie uma chave (começa com sc_live_) com a permissão “generate”. Gasta créditos da sua conta.',
+  },
 };
 
-/** Testa a chave da PixelLab pedindo o saldo. -> { ok, texto } (não lança). */
-export async function testarPixelLab() {
-  const chave = lerChave('pixellab');
+/** Testa a chave pedindo o saldo. -> { ok, texto } (não lança). */
+async function testarSaldo(nome, url, chave) {
   if (!chave) return { ok: false, texto: 'Cole e salve a chave primeiro.' };
   try {
-    const r = await chamar('https://api.pixellab.ai/v2/balance', { headers: { Authorization: `Bearer ${chave}` }, tempo: 20_000 });
-    if (r.status === 401 || r.status === 403) return { ok: false, texto: 'A PixelLab recusou a chave. Confira se copiou o token inteiro.' };
-    if (!r.ok) return { ok: false, texto: `A PixelLab respondeu com erro (${r.status}).` };
-    const saldo = r.corpo?.credits ?? r.corpo?.usd ?? r.corpo?.balance;
-    return { ok: true, texto: `Chave aceita pela PixelLab${saldo !== undefined ? ` (saldo: ${typeof saldo === 'object' ? JSON.stringify(saldo) : saldo})` : ''}.` };
+    const r = await chamar(url, { headers: { Authorization: `Bearer ${chave}` }, tempo: 20_000 });
+    if (r.status === 401 || r.status === 403) return { ok: false, texto: `A ${nome} recusou a chave. Confira se copiou a chave inteira (e se ela tem permissão para gerar).` };
+    if (!r.ok) return { ok: false, texto: `A ${nome} respondeu com erro (${r.status}).` };
+    const c = r.corpo || {};
+    const saldo = c.credits ?? c.credits_remaining ?? c.usd ?? c.balance;
+    return { ok: true, texto: `Chave aceita pela ${nome}${saldo !== undefined ? ` (saldo: ${typeof saldo === 'object' ? JSON.stringify(saldo) : saldo})` : ''}.` };
   } catch {
-    return { ok: false, texto: 'Não consegui falar com a PixelLab daqui (sem internet ou o navegador bloqueou). A chave ficou guardada mesmo assim.' };
+    return { ok: false, texto: `Não consegui falar com a ${nome} daqui (sem internet ou o navegador bloqueou). A chave ficou guardada mesmo assim.` };
   }
 }
+export const testarPixelLab = () => testarSaldo('PixelLab', 'https://api.pixellab.ai/v1/balance', lerChave('pixellab'));
+export const testarSpriteCook = () => testarSaldo('SpriteCook', 'https://api.spritecook.ai/v1/api/credits', lerChave('spritecook'));
 
 const URL_GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 const URL_OPENROUTER = 'https://openrouter.ai/api/v1';
@@ -89,6 +99,27 @@ export function modeloEscolhido() {
 }
 export function escolherModelo(m) {
   ls()?.setItem(MODELO_LS, JSON.stringify({ provedor: m.provedor, id: m.id }));
+}
+
+/* ---------- modelo do EDITOR de pixels (separado do Criar jogo) ---------- */
+
+const MODELO_EDITOR_LS = 'miniengine.ia.modeloEditor';
+/** IAs de desenho do editor: o "id" é o próprio serviço. */
+export const MODELOS_DE_DESENHO = {
+  pixellab: { provedor: 'pixellab', id: 'pixellab' },
+  spritecook: { provedor: 'spritecook', id: 'spritecook' },
+};
+
+/** Modelo do editor: PixelLab é o padrão; SpriteCook, Gemini e OpenRouter são opções. */
+export function modeloDoEditor() {
+  try {
+    const m = JSON.parse(ls()?.getItem(MODELO_EDITOR_LS) || 'null');
+    if (m && (MODELOS_DE_DESENHO[m.provedor] || (PROVEDORES[m.provedor] && m.id))) return m;
+  } catch { /* nada */ }
+  return { ...MODELOS_DE_DESENHO.pixellab };
+}
+export function escolherModeloDoEditor(m) {
+  ls()?.setItem(MODELO_EDITOR_LS, JSON.stringify({ provedor: m.provedor, id: m.id }));
 }
 
 /* ---------- HTTP ---------- */

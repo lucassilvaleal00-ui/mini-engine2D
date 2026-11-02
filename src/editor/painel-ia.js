@@ -16,39 +16,44 @@
 
 import { h } from '../ui/dom.js';
 import { icone } from './icones.js';
-import { temAlgumaChave } from '../core/ia.js';
+import { lerChave, modeloDoEditor } from '../core/ia.js';
 import { dialogoModelo, rotuloDoModelo } from '../jogo/dialogo-modelo.js';
 
-export function criarPainelIA() {
-  // Modelo IA: o mesmo do Criar jogo (a escolha e as chaves ficam neste aparelho e valem para os dois).
+/**
+ * @param aoTransformar  abre a tela "Transformar imagem"
+ */
+export function criarPainelIA({ aoTransformar } = {}) {
+  // Modelo IA do EDITOR: PixelLab é o padrão; SpriteCook, Gemini e OpenRouter são opções.
+  // (É uma escolha separada da do Criar jogo; as chaves ficam neste aparelho.)
   const botaoModelo = h('button', {
-    class: 'botao pequeno largo ia-modelo', type: 'button', title: 'Escolher o modelo de IA e colar as chaves',
-    onclick: async () => { await dialogoModelo(); atualizarModelo(); },
+    class: 'botao pequeno largo ia-modelo', type: 'button', title: 'Escolher a IA do editor e colar as chaves',
+    onclick: async () => { await dialogoModelo({ modo: 'editor' }); atualizarModelo(); },
   });
   const atualizarModelo = () => {
-    botaoModelo.textContent = `Modelo IA: ${temAlgumaChave() ? rotuloDoModelo() : 'configurar'}`;
+    const m = modeloDoEditor();
+    botaoModelo.textContent = `Modelo IA: ${rotuloDoModelo(m)}${lerChave(m.provedor) ? '' : ' (colar a chave)'}`;
   };
   atualizarModelo();
 
   const el = h('div', { class: 'ia' },
-    h('div', { class: 'painel-titulo' }, h('span', {}, 'Chamar IA'), h('span', { class: 'selo' }, 'etapa 5')),
-    h('p', { class: 'dica pequena' },
-      'Aqui você vai pedir à IA para criar ou alterar o desenho. Ela usa as ferramentas deste editor e entrega o resultado num frame novo, sem mexer nos seus.'),
-    h('ul', { class: 'lista-simples pequena' },
-      h('li', {}, 'Parte do zero ou do primeiro frame, conforme o seu pedido'),
-      h('li', {}, 'Aceita uma imagem de inspiração'),
-      h('li', {}, 'Mostra o resultado primeiro; se o pedido tiver vários frames, entrega um de cada vez'),
-      h('li', {}, 'Comando “aprimorar”: refaz com mais cuidado e precisão'),
-      h('li', {}, 'Você revisa o frame novo antes de salvar')),
+    h('div', { class: 'painel-titulo' }, h('span', {}, 'Chamar IA')),
     botaoModelo,
-    h('p', { class: 'dica pequena' }, 'O modelo escolhido aqui é o mesmo do Criar jogo. O chat de desenho (Solicitar IA) é a próxima parte a ser ligada.'),
+    h('button', {
+      class: 'botao primario largo ia-transformar', type: 'button',
+      onclick: () => aoTransformar?.(),
+    }, '🪄 Transformar imagem'),
+    h('p', { class: 'dica pequena' },
+      'Suba qualquer imagem: ela volta como pixel art editável, na grade que você escolher (16×16, 32×32…), num frame novo. Com a PixelLab ou a SpriteCook dá para pedir isométrico ou top down.'),
+    h('hr', { class: 'separador' }),
+    h('p', { class: 'dica pequena' },
+      'Em breve: pedir à IA para criar ou alterar o desenho por texto. Ela entrega o resultado num frame novo, sem mexer nos seus.'),
     h('div', { class: 'ia-chat', 'aria-disabled': 'true' },
       h('textarea', {
         class: 'campo', rows: 3, disabled: true, 'aria-label': 'Pedido para a IA',
-        placeholder: 'Disponível na etapa 5…',
+        placeholder: 'Pedido por texto: em breve…',
       }),
       h('div', { class: 'ia-botoes' },
         h('button', { class: 'botao pequeno', type: 'button', disabled: true }, icone('anexo', 16), 'Imagem'),
         h('button', { class: 'botao pequeno primario', type: 'button', disabled: true }, icone('enviar', 16), 'Enviar'))));
-  return { el };
+  return { el, atualizarModelo };
 }

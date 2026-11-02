@@ -14,7 +14,10 @@ import { ErroDoEditor, REFERENCIA_MAX_CHARS, rgbParaHex } from './documento.js';
 
 const LADO_MAX = 1280;       // maior lado guardado (imagens maiores são reduzidas)
 const BYTES_MAX = 25 * 1024 * 1024;
-const TAMANHOS = [0.38, 0.5, 0.62];
+const TAMANHOS = [0.5, 0.38, 0.62]; // fração da largura: metade/metade é o padrão (desenho | inspiração)
+const CHAVE_ESCONDIDO = 'miniengine.editor.inspiracaoEscondida';
+const lerEscondido = () => { try { return globalThis.localStorage?.getItem(CHAVE_ESCONDIDO) === '1'; } catch { return false; } };
+const gravarEscondido = (sim) => { try { if (sim) globalThis.localStorage?.setItem(CHAVE_ESCONDIDO, '1'); else globalThis.localStorage?.removeItem(CHAVE_ESCONDIDO); } catch { /* ok */ } };
 
 /* ------------------------------------------------------------------ */
 /* Preparar a imagem escolhida                                         */
@@ -392,11 +395,14 @@ export function criarPainelReferencia(ctl, { aoPegarCor, aoMudarAbertura }) {
     }
   }
 
-  function abrir() { aberto = true; el.hidden = false; aoMudarAbertura?.(true); vista._redimensionar(); }
-  function fechar() { aberto = false; el.hidden = true; aoMudarAbertura?.(false); }
+  // pelo usuário (botões ✕ e aba "Inspiração"): a escolha fica lembrada neste aparelho
+  function abrir({ lembrar = true } = {}) { aberto = true; el.hidden = false; if (lembrar) gravarEscondido(false); aoMudarAbertura?.(true); vista._redimensionar(); }
+  function fechar({ lembrar = true } = {}) { aberto = false; el.hidden = true; if (lembrar) gravarEscondido(true); aoMudarAbertura?.(false); }
 
-  ctl.on('referencia', () => { atualizar(); if (ctl.referencia) abrir(); });
+  ctl.on('referencia', () => { atualizar(); if (ctl.referencia) abrir({ lembrar: false }); });
   atualizar();
+  // o painel fica sempre ao lado do desenho (como pedido), a menos que a pessoa o tenha escondido
+  if (ctl.referencia || !lerEscondido()) abrir({ lembrar: false });
 
   return {
     el,
@@ -404,6 +410,7 @@ export function criarPainelReferencia(ctl, { aoPegarCor, aoMudarAbertura }) {
     abrir,
     fechar,
     alternar: () => (aberto ? fechar() : abrir()),
+    abrirSemLembrar: () => abrir({ lembrar: false }),
     get aberto() { return aberto; },
     destruir: () => vista.destruir(),
   };

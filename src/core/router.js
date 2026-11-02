@@ -12,7 +12,7 @@
 
 import { h } from '../ui/dom.js';
 
-export function iniciarRoteador(raiz, rotas) {
+export function iniciarRoteador(raiz, rotas, { guarda = null } = {}) {
   let senha = 0;      // identifica a navegação atual (descarta montagens atrasadas)
   let limpeza = null; // função de limpeza da tela atual
   let primeira = true;
@@ -75,6 +75,12 @@ export function iniciarRoteador(raiz, rotas) {
     const tela = rotas[chave];
     if (!tela) {
       navegar('/', { substituir: true });
+      return;
+    }
+    // guarda (ex.: tela de login): pode mandar para outra rota antes de montar
+    const desvio = guarda ? guarda(chave, lerCaminho()) : null;
+    if (desvio) {
+      navegar(desvio, { substituir: true });
       return;
     }
 

@@ -27,6 +27,18 @@ import { icone } from '../editor/icones.js';
 import { dialogoNovo, dialogoSalvar, menuTransformar } from '../editor/dialogos-editor.js';
 import { dialogoExportar, importarArquivo } from '../editor/dialogos-arquivo.js';
 import * as arquivo from '../editor/arquivo.js';
+import { dialogoTransformar } from '../editor/dialogo-transformar.js';
+import { prepararArte, coresParaDesenho } from '../editor/pixelizar.js';
+import { nomeDeDesenho } from '../editor/importar.js';
+
+/** Desenho novo (1 frame) com a arte do "Transformar imagem". */
+function estadoDaArte(arte, nome) {
+  const e = novoEstado({ nome: nomeDeDesenho(nome || 'imagem', 'imagem'), largura: arte.largura, altura: arte.altura });
+  const { indices, novas } = coresParaDesenho(arte.rgba, e.paleta);
+  e.paleta = [...e.paleta, ...novas];
+  e.quadros[0].camadas[0] = indices;
+  return e;
+}
 
 export async function montar(el, { parametro, navegar, voltar }) {
   document.title = 'Editor · Mini Engine';
@@ -56,6 +68,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
         cartao('Criar', '✨', 'Começar um desenho novo, em branco.', criar),
         cartao('Abrir', '📂', 'Continuar um desenho salvo nas suas pastas.', () => mostrarAbrir(RAIZ)),
         cartao('Importar', '📥', 'Trazer uma imagem PNG ou um arquivo JSON de fora.', importarNaEscolha),
+        cartao('Transformar imagem', '🪄', 'Qualquer imagem vira pixel art editável, na grade que você escolher (com ou sem IA).', transformarNaEscolha),
         rascunhos.map((r) => cartao('Continuar rascunho', '📝',
           `${r.estado.nome || 'Sem nome'} · ${pluralizar(r.estado.quadros.length, 'frame', 'frames')} · ${formatarDataHora(r.em)}`,
           () => iniciarEdicao(r.estado, r.origem, { sujo: true, referencia: r.referencia ?? null, rascunhoId: r.id })))),
@@ -80,6 +93,11 @@ export async function montar(el, { parametro, navegar, voltar }) {
   async function importarNaEscolha() {
     const r = await importarArquivo({ ctl: null });
     if (r?.tipo === 'desenho') iniciarEdicao(r.estado, null, { sujo: true, referencia: r.referencia });
+  }
+
+  async function transformarNaEscolha() {
+    const arte = await dialogoTransformar();
+    if (arte) iniciarEdicao(estadoDaArte(arte, arte.nome), null, { sujo: true });
   }
 
   async function criar() {
@@ -193,7 +211,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
       obter: () => corIndice,
       definir: (i) => { corIndice = i; atualizarAbaCor(); },
     });
-    const ia = criarPainelIA();
+    const ia = criarPainelIA({ aoTransformar: () => transformarImagem() });
 
     /* imagem de inspiração: painel ao lado do desenho; tocar nela pega a cor */
     const pontoRef = h('span', { class: 'aba-ponto', hidden: !ctl.referencia, title: 'Este desenho tem uma imagem de inspiração' });
@@ -299,7 +317,6 @@ export async function montar(el, { parametro, navegar, voltar }) {
       centro,
       gaveta('direita', 'Chamar IA', icone('estrela', 18), ia.el, false, [abaRef]));
     preencher(el, h('div', { class: 'editor' }, topo, quadros.el, meio, barra.el));
-    if (ctl.referencia) painelRef.abrir(); // projeto com imagem de inspiração: já aparece ao abrir
 
     /* ---------- reações a mudanças ---------- */
     let medidas = `${ctl.largura}x${ctl.altura}`;
@@ -350,39 +367,91 @@ export async function montar(el, { parametro, navegar, voltar }) {
     }
 
     /* ---------- novo desenho (sem sair do editor) ---------- */
+    /**
+     * Antes de trocar de desenho: se há alterações não salvas, pergunta (salvar, rascunho, descartar).
+     * -> { ok, guardou } (ok=false: a pessoa cancelou)
+     */
+    async function liberarDesenhoAtual(titulo = 'Começar um desenho novo?') {
+      if (!ctl.sujo) return { ok: true, guardou: false };
+      const escolha = await abrirDialogo(({ fechar }) => [
+        h('h2', { class: 'dialogo-titulo' }, titulo),
+        h('p', { class: 'dialogo-texto' }, `“${ctl.e.nome || 'Sem nome'}” tem alterações que ainda não foram salvas. O que fazer com elas?`),
+        h('div', { class: 'menu-acoes' },
+          h('button', { class: 'menu-item', type: 'button', 'data-foco': '', onclick: () => fechar('salvar') },
+            h('span', { class: 'menu-icone' }, '💾'), h('span', { class: 'menu-rotulo' }, 'Salvar agora'), h('small', { class: 'menu-nota' }, 'guarda nas pastas, como o botão Salvar')),
+          h('button', { class: 'menu-item', type: 'button', onclick: () => fechar('rascunho') },
+            h('span', { class: 'menu-icone' }, '📝'), h('span', { class: 'menu-rotulo' }, 'Guardar como rascunho'), h('small', { class: 'menu-nota' }, 'continue depois pela tela do editor')),
+          h('button', { class: 'menu-item perigo', type: 'button', onclick: () => fechar('descartar') },
+            h('span', { class: 'menu-icone' }, '🗑'), h('span', { class: 'menu-rotulo' }, 'Descartar as alterações'), h('small', { class: 'menu-nota' }, 'não tem volta'))),
+        h('button', { class: 'botao largo', type: 'button', onclick: () => fechar(null) }, 'Cancelar'),
+      ]);
+      if (!escolha) return { ok: false, guardou: false };
+      if (escolha === 'salvar' && !(await salvar())) return { ok: false, guardou: false };
+      if (escolha === 'rascunho') {
+        clearTimeout(relogioRascunho);
+        await arquivo.guardarRascunho(idRascunho, ctl.e, ctl.origem, ctl.referencia).catch(() => {});
+      }
+      if (escolha === 'descartar') {
+        descartado = true;
+        clearTimeout(relogioRascunho);
+        await arquivo.apagarRascunho(idRascunho).catch(() => {});
+      }
+      return { ok: true, guardou: escolha === 'rascunho' };
+    }
+
     async function novoDesenho() {
       if (ctl.trabalho) return;
-      if (ctl.sujo) {
-        const escolha = await abrirDialogo(({ fechar }) => [
-          h('h2', { class: 'dialogo-titulo' }, 'Começar um desenho novo?'),
-          h('p', { class: 'dialogo-texto' }, `“${ctl.e.nome || 'Sem nome'}” tem alterações que ainda não foram salvas. O que fazer com elas?`),
-          h('div', { class: 'menu-acoes' },
-            h('button', { class: 'menu-item', type: 'button', 'data-foco': '', onclick: () => fechar('salvar') },
-              h('span', { class: 'menu-icone' }, '💾'), h('span', { class: 'menu-rotulo' }, 'Salvar agora'), h('small', { class: 'menu-nota' }, 'guarda nas pastas, como o botão Salvar')),
-            h('button', { class: 'menu-item', type: 'button', onclick: () => fechar('rascunho') },
-              h('span', { class: 'menu-icone' }, '📝'), h('span', { class: 'menu-rotulo' }, 'Guardar como rascunho'), h('small', { class: 'menu-nota' }, 'continue depois pela tela do editor')),
-            h('button', { class: 'menu-item perigo', type: 'button', onclick: () => fechar('descartar') },
-              h('span', { class: 'menu-icone' }, '🗑'), h('span', { class: 'menu-rotulo' }, 'Descartar as alterações'), h('small', { class: 'menu-nota' }, 'não tem volta'))),
-          h('button', { class: 'botao largo', type: 'button', onclick: () => fechar(null) }, 'Cancelar'),
-        ]);
-        if (!escolha) return;
-        if (escolha === 'salvar' && !(await salvar())) return;
-        if (escolha === 'rascunho') {
-          clearTimeout(relogioRascunho);
-          await arquivo.guardarRascunho(idRascunho, ctl.e, ctl.origem, ctl.referencia).catch(() => {});
-        }
-        if (escolha === 'descartar') {
-          descartado = true;
-          clearTimeout(relogioRascunho);
-          await arquivo.apagarRascunho(idRascunho).catch(() => {});
-        }
-      }
+      const { ok, guardou } = await liberarDesenhoAtual();
+      if (!ok) return;
       const dados = await dialogoNovo();
       if (!dados) { descartado = false; return; }
-      const guardou = ctl.sujo && !descartado;
       descartado = true; // o rascunho (se havia) já foi tratado acima: a limpeza não repete
       iniciarEdicao(novoEstado(dados), null);
       if (guardou) aviso('O desenho anterior ficou guardado como rascunho. Continue depois pela tela do editor.', { duracao: 6000 });
+    }
+
+    /* ---------- Transformar imagem ---------- */
+    async function transformarImagem() {
+      if (ctl.trabalho) return;
+      const arte = await dialogoTransformar({ tamanhoAtual: { largura: ctl.largura, altura: ctl.altura } });
+      ia.atualizarModelo(); // a chave pode ter sido colada na tela do Transformar
+      if (!arte) return;
+      const mesmoTamanho = arte.largura === ctl.largura && arte.altura === ctl.altura;
+      if (mesmoTamanho) { porNumFrameNovo(arte); return; }
+      if (ctl.emBranco) { // desenho novo e vazio: ele mesmo passa a ter o tamanho da arte
+        descartado = true;
+        clearTimeout(relogioRascunho);
+        await arquivo.apagarRascunho(idRascunho).catch(() => {});
+        iniciarEdicao(estadoDaArte(arte, ctl.e.nome || arte.nome), null, { sujo: true, referencia: ctl.referencia });
+        aviso(`Pronto: a arte (${arte.largura}×${arte.altura}) está no frame 1. Edite à vontade e salve.`, { tipo: 'ok', duracao: 6000 });
+        return;
+      }
+      const onde = await menuAcoes({
+        titulo: 'Onde pôr a arte?',
+        subtitulo: `A arte tem ${arte.largura}×${arte.altura} e o seu desenho tem ${ctl.largura}×${ctl.altura}.`,
+        acoes: [
+          { icone: '➕', rotulo: `Num frame novo deste desenho`, nota: `ajusta a arte para ${ctl.largura}×${ctl.altura}`, valor: 'frame' },
+          { icone: '✨', rotulo: `Num desenho novo de ${arte.largura}×${arte.altura}`, nota: 'mantém a arte exatamente como ficou', valor: 'novo' },
+        ],
+      });
+      if (onde === 'frame') {
+        const ajustada = prepararArte(arte, { tamanho: { largura: ctl.largura, altura: ctl.altura }, tirarFundo: false });
+        porNumFrameNovo({ ...ajustada, nome: arte.nome });
+      } else if (onde === 'novo') {
+        const { ok, guardou } = await liberarDesenhoAtual('Abrir a arte num desenho novo?');
+        if (!ok) return;
+        descartado = true;
+        iniciarEdicao(estadoDaArte(arte, arte.nome), null, { sujo: true });
+        if (guardou) aviso('O desenho anterior ficou guardado como rascunho.', { duracao: 6000 });
+      }
+    }
+
+    function porNumFrameNovo(arte) {
+      const { indices, novas, aproximadas } = coresParaDesenho(arte.rgba, ctl.e.paleta);
+      try {
+        ctl.inserirQuadroComArte(indices, novas);
+      } catch (x) { avisarErro(x); return; }
+      aviso(`A arte entrou no frame ${ctl.e.atual + 1}.${novas.length ? ` ${pluralizar(novas.length, 'cor nova entrou', 'cores novas entraram')} na paleta.` : ''}${aproximadas ? ' A paleta encheu: algumas cores foram trocadas pelas mais parecidas.' : ''}`, { tipo: 'ok', duracao: 6000 });
     }
 
     /* ---------- exportar e importar ---------- */
@@ -393,6 +462,7 @@ export async function montar(el, { parametro, navegar, voltar }) {
         acoes: [
           { icone: '⬇', rotulo: 'Exportar…', nota: 'PNG, GIF, sprite sheet, ZIP, JSON', ao: () => dialogoExportar(ctl) },
           { icone: '⬆', rotulo: 'Importar…', nota: 'imagem PNG ou arquivo JSON', ao: () => importar() },
+          { icone: '🪄', rotulo: 'Transformar imagem…', nota: 'qualquer imagem vira pixel art num frame novo', ao: () => transformarImagem() },
         ],
       });
     }
